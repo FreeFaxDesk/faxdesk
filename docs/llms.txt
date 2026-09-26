@@ -1,0 +1,16 @@
+# Free Fax Desk
+
+> Free, open-source Windows fax app for small offices that have an internet fax line (Phone.com first). Incoming fax inbox, send PDFs with a cover page, send log, no telemetry. Free for one PC; whole-office (LAN) plan is $99 one time. Published by HnS, LLC.
+
+- Home: https://freefaxdesk.com/
+- Whole office plan: https://freefaxdesk.com/office
+- Fax services with an API (comparison): https://freefaxdesk.com/providers
+- Code signing policy: https://freefaxdesk.com/signing
+- Source code and downloads (MIT): https://github.com/FreeFaxDesk/faxdesk
+- Support: help@freefaxdesk.com
+
+## Facts
+- Windows 10/11, single EXE, no install; Python standard library only.
+- Works with a Phone.com account's fax number via the Phone.com API; other providers planned (SRFax next).
+- Nothing phones home: no analytics, no update checks, no cloud account.
+- Not affiliated with Phone.com.
