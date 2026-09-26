@@ -39,10 +39,16 @@ footer{color:var(--muted);font-size:13px;text-align:center;padding:30px 20px;bor
  <div class="plan paid"><h3>Whole office</h3><div class="price">$99 one time</div>One payment, every PC in your office, free updates. Open the same page to every desk on your office network. One fax line, one inbox everyone sees, one log. A licence key you paste into Settings; nothing phones home. <br><br><a class="btn" href="mailto:help@freefaxdesk.com?subject=Whole%20office%20licence">Get a key</a></div>
 </div>
 <h2 id="faq">Questions</h2>
-<p><b>Do I need a Phone.com account?</b> FaxDesk started on Phone.com and that is the tested path; <a href="providers.html">other services</a> are coming, and you can ask for yours. If you do not have a line yet, <a href="https://www.phone.com/" target="_blank" rel="noopener">phone.com</a> gets you a fax number (referral link pending).</p>
-<p><b>Is it secure?</b> Your token is stored sealed to your Windows account. Faxes are files on your PC. FaxDesk never sends anything anywhere except to Phone.com to fax it.</p>
-<p><b>Who made this?</b> A small medical office that wanted its fax line to behave like email, built it for the front desk, and decided to give it away. The office stays anonymous; the code does not - it is open on GitHub under the MIT licence.</p>
+<p><b>Do I need a Phone.com account?</b> Yes, today. FaxDesk started on Phone.com and that is the tested path; <a href="providers.html">other services</a> are coming, and you can ask for yours. If you do not have a line yet, <a href="https://www.phone.com/" target="_blank" rel="noopener">phone.com</a> gets you a fax number.</p>
+<p><b>How do I get the API key?</b> Ten minutes, once: <a href="setup.html">Get your Phone.com API key</a> walks through it with screenshots-free plain steps.</p>
+<p><b>Is it really free?</b> Yes. Every feature, no page limits, no time limit, no nag, on one PC. The only paid option is opening the same inbox to every desk on your office network: $99 one time per office.</p>
+<p><b>Is it secure?</b> Your token is stored sealed to your Windows account. Faxes are files on your PC. FaxDesk never sends anything anywhere except to Phone.com to fax it: no cloud account, no telemetry, no update checks.</p>
+<p><b>Is it HIPAA compliant?</b> No software is, by itself. FaxDesk keeps your faxes on your own PC and adds no third party; your Business Associate Agreement stays between you and Phone.com. Set the retention days to match your policy.</p>
+<p><b>Does it work on a Mac?</b> Not yet as an app. It is plain Python, so it runs on a Mac from source (FaxDesk.command in the download); a packaged Mac app comes when enough people ask.</p>
+<p><b>Windows says "Windows protected your PC".</b> That is SmartScreen reacting to a new, not-yet-signed download. Click "More info", then "Run anyway". Signed releases are on the way; see the <a href="signing.html">code signing policy</a>.</p>
+<p><b>Can several people use it?</b> On one PC, yes: pick your name and work. To use it from other desks you need the whole-office key, which turns on the office-network switch. Then every desk opens the same page in a browser; nothing to install on those PCs.</p>
+<p><b>Will it delete faxes at Phone.com?</b> No. FaxDesk only reads from Phone.com. What you delete in FaxDesk is deleted on your PC.</p>
+<p><b>Who made this?</b> Frye Chiropractic, a multi-doctor practice in Lancaster, California, built it for its own front desk on its Phone.com line and decided to give it away. It is published by HnS, LLC and the code is open on GitHub under the MIT licence.</p>
 <p><b>Support?</b> <a href="mailto:help@freefaxdesk.com">help@freefaxdesk.com</a>. If FaxDesk saves you time, <a href="https://buymeacoffee.com/freefaxdesk" target="_blank" rel="noopener">buy us a coffee</a>.</p>
-</div>
 <footer>Free Fax Desk / FaxDesk is a product of HnS, LLC, a Wyoming company. MIT licence. <a href="signing.html">Code signing policy</a>. Provided as is, without warranty of any kind. Not affiliated with Phone.com.</footer>
 </body></html>

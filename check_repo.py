@@ -34,7 +34,12 @@ def main():
                 continue
             if any(ord(ch) > 127 for ch in text) and ext in (".py", ".bat", ".command", ".txt"):
                 bad.append((rel, "non-ASCII characters"))
+            # Harry 2026-09-27: the clinic is named publicly in the press release, so the public-facing site text
+            # (docs/index.html only) may say "Frye Chiropractic" / "Lancaster, California". Never in src/.
+            public_ok = rel.replace("\\", "/") == "docs/index.html"
             for w in BAD_WORDS:
+                if public_ok and w in (r"frye", r"lancaster", r"chiro"):
+                    continue
                 m = re.search(w, text, re.I)
                 if m:
                     line = text[:m.start()].count("\n") + 1
