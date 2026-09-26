@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Free Fax Desk - fax from your PC with your Phone.com line</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="FaxDesk: a small free program that turns a Phone.com fax line into a fax desk on your PC. Send PDFs with a cover sheet, see incoming faxes, assign them, keep a log. No cloud account, no telemetry.">
+<style>
+:root{--blue:#1d4a7a;--ink:#1b2430;--muted:#5a6470;--bg:#f4f6f9;--green:#00664f}
+*{box-sizing:border-box}body{margin:0;font:16px/1.55 Segoe UI,Arial,sans-serif;color:var(--ink);background:#fff}
+header{background:#0d2a4a;color:#fff;padding:14px 20px;display:flex;align-items:center;gap:14px}header b{font-size:20px}header a{color:#cfd8e3;text-decoration:none;margin-left:14px}
+.hero{background:var(--bg);padding:48px 20px;text-align:center}.hero h1{font-size:34px;margin:0 0 10px;color:var(--blue)}.hero p{max-width:640px;margin:0 auto 20px;font-size:18px;color:var(--muted)}
+.btn{display:inline-block;background:var(--green);color:#fff;text-decoration:none;padding:12px 22px;border-radius:8px;font-weight:700;font-size:17px}.btn.sec{background:#e6eef7;color:#12314a;border:1px solid #9fb7cf}
+.wrap{max-width:960px;margin:0 auto;padding:28px 20px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px}.card{border:1px solid #d8dee6;border-radius:12px;padding:16px}.card h3{margin:0 0 6px;color:var(--blue)}
+img.shot{width:100%;border:1px solid #d8dee6;border-radius:10px;margin:8px 0}
+h2{color:var(--blue);margin:34px 0 10px}ol,ul{padding-left:22px}code{background:#eef1f5;padding:1px 6px;border-radius:4px}
+.plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}.plan{border:2px solid #d8dee6;border-radius:12px;padding:18px}.plan.paid{border-color:var(--green)}.plan .price{font-size:28px;font-weight:700;margin:6px 0}
+footer{color:var(--muted);font-size:13px;text-align:center;padding:30px 20px;border-top:1px solid #d8dee6;margin-top:40px}
+</style></head><body>
+<header><b>Free Fax Desk</b><a href="#download">Download</a><a href="#how">How it works</a><a href="office.html">Whole office</a><a href="providers.html">Fax services</a><a href="#faq">FAQ</a></header>
+<div class="hero"><h1>Your Phone.com fax line, on your PC.</h1>
+<p>FaxDesk is a small free program. Drop a PDF, it goes out with a cover sheet. Incoming faxes show up on the page, get assigned to a person and marked handled. Everything stays on your computer.</p>
+<a class="btn" href="#download">Download FaxDesk (Windows)</a> &nbsp; <a class="btn sec" href="#how">See how it works</a></div>
+<div class="wrap">
+<div class="grid">
+ <div class="card"><h3>Send</h3>Drop a PDF, pick the name from your address book, add a note. A cover sheet with your logo goes first. It queues and sends within a minute; you get a transmission report with the cover as sent.</div>
+ <div class="card"><h3>Incoming</h3>New faxes appear within minutes. Open, print, assign to a person, mark handled, name a sender, block spam, or set "always send this sender to Susie".</div>
+ <div class="card"><h3>Log</h3>Every fax sent or failed, with the reason in plain words, a printable confirmation, and search.</div>
+ <div class="card"><h3>Private by design</h3>No cloud account. No telemetry. Files live in a folder on your PC and are deleted after the number of days you choose. The only thing it talks to is api.phone.com.</div>
+</div>
+<h2 id="how">How it works</h2>
+<img class="shot" src="shots/send.png" alt="FaxDesk send screen"><img class="shot" src="shots/inbox.png" alt="FaxDesk incoming faxes">
+<h2 id="download">Download and set up (5 minutes)</h2>
+<ol><li>Download <code>FaxDesk.exe</code> (Windows 10/11). Mac: download the zip and double-click <code>FaxDesk.command</code> (needs Python 3).</li>
+<li>Run it. Your browser opens on the setup page.</li>
+<li>Settings: paste your Phone.com API token (Phone.com > API), your account id and the extension of your fax line. Test connection.</li>
+<li>Add your people's names. Send a one-page test to yourself.</li></ol>
+<p><a class="btn" href="https://github.com/freefaxdesk/faxdesk/releases/latest">Download the latest release</a></p>
+<h2 id="plans">Free for one PC. Whole office when you need it.</h2>
+<div class="plans">
+ <div class="plan"><h3>Free</h3><div class="price">$0</div>FaxDesk on one PC. Every feature above. No time limit, no nag.</div>
+ <div class="plan paid"><h3>Whole office</h3><div class="price">$__ / month</div>Open the same page to every desk on your office network. One fax line, one inbox everyone sees, one log. A licence key you paste into Settings; nothing phones home. <br><br><a class="btn" href="mailto:help@freefaxdesk.com?subject=Whole%20office%20licence">Get a key</a></div>
+</div>
+<h2 id="faq">Questions</h2>
+<p><b>Do I need a Phone.com account?</b> FaxDesk started on Phone.com and that is the tested path; <a href="providers.html">other services</a> are coming, and you can ask for yours. If you do not have a line yet, <a href="#">this link</a> gets you a Phone.com fax number.</p>
+<p><b>Is it secure?</b> Your token is stored sealed to your Windows account. Faxes are files on your PC. FaxDesk never sends anything anywhere except to Phone.com to fax it.</p>
+<p><b>Who made this?</b> A small medical office that wanted its fax line to behave like email, built it for the front desk, and decided to give it away. The office stays anonymous; the code does not - it is open on GitHub under the MIT licence.</p>
+<p><b>Support?</b> <a href="mailto:help@freefaxdesk.com">help@freefaxdesk.com</a>. If FaxDesk saves you time, <a href="#">buy us a coffee</a>.</p>
+</div>
+<footer>Free Fax Desk / FaxDesk. MIT licence. Provided as is, without warranty of any kind. Not affiliated with Phone.com.</footer>
+</body></html>

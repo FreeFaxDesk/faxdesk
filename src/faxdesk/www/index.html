@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>FaxDesk</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+.nw{white-space:nowrap}
+body.single .multi{display:none}
+:root{--blue:#1d4a7a;--ink:#1b2430;--muted:#5a6470;--line:#d8dee6;--bg:#f4f6f9;--red:#b3261e;--green:#00664f}
+*{box-sizing:border-box}body{margin:0;font:14px/1.4 Segoe UI,Arial,sans-serif;color:var(--ink);background:var(--bg)}
+.bar{display:flex;align-items:center;gap:6px;padding:6px 12px;background:#0d2a4a;color:#fff;position:sticky;top:0;z-index:5}
+.bar b{font-size:16px;margin-right:6px}.bar button{background:#1d4a7a;color:#fff;border:0;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:13px}
+.bar button.on{background:#fff;color:#0d2a4a}.bar .me{margin-left:auto;display:flex;gap:6px;align-items:center;font-size:13px}.bar select{padding:6px;border-radius:6px;border:0}
+.badge{display:inline-block;min-width:18px;background:var(--red);color:#fff;border-radius:12px;padding:0 6px;font-size:12px;margin-left:5px}.badge.zero{display:none}
+.wrap{padding:12px;max-width:960px;margin:0 auto}.card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px}
+h2{margin:0 0 6px;font-size:17px;color:var(--blue)}h3{margin:10px 0 4px;font-size:14px}
+label{display:block;font-size:12px;color:var(--muted);margin:6px 0 2px}input,select,textarea{width:100%;padding:5px 7px;border:1px solid #9fb0c4;border-radius:6px;font-size:14px}
+textarea{min-height:48px}.row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1;min-width:160px}
+button.go{background:var(--green);color:#fff;border:0;border-radius:6px;padding:7px 14px;cursor:pointer;font-size:14px;font-weight:600}
+button.small{background:var(--blue);color:#fff;border:0;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:13px}button.ghost{background:#eef1f5;color:var(--ink)}
+button:disabled{opacity:.5;cursor:default}.muted{color:var(--muted);font-size:13px}.err{color:var(--red);font-size:14px;margin-top:6px}.okm{color:var(--green);font-size:14px}
+table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;padding:6px 6px;border-bottom:1px solid var(--line)}
+td{padding:5px 6px;border-bottom:1px solid #eef1f5;vertical-align:top}tr.new td{background:#fff8e6}tr.mine td{background:#eaf5f0}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 10px}.tabs button{background:#e6eef7;color:#12314a;border:1px solid #9fb7cf;border-radius:7px;padding:6px 12px;cursor:pointer;font-size:14px}.tabs button.on{background:#0d2a4a;color:#fff;border-color:#0d2a4a}
+.drop{border:2px dashed #9fb0c4;border-radius:10px;padding:14px;text-align:center;color:var(--muted);cursor:pointer;background:#f7f9fc}.drop.has{border-color:var(--green);color:var(--ink)}
+.pill{display:inline-block;background:#e8eef6;border-radius:10px;padding:1px 8px;font-size:12px}.pill.red{background:#fde2e2;color:#7a1a1a}.pill.green{background:#dff3ea;color:#0b4a37}
+.hint{background:#fff3cd;border:1px solid #e0c266;border-radius:8px;padding:8px 12px;color:#5a4400;margin-bottom:10px}
+#toast{position:fixed;top:54px;right:16px;background:var(--red);color:#fff;font-weight:700;padding:12px 18px;border-radius:10px;display:none;z-index:9;cursor:pointer}
+@media print{.bar,.tabs,button{display:none}}
+</style></head><body>
+<div class="bar"><b>FaxDesk</b>
+  <button data-v="send" class="on">Send</button><button data-v="inbox">Incoming <span id="b-in" class="badge zero">0</span></button><button data-v="log">Sent log</button><button data-v="book">Address book</button><button data-v="settings">Settings</button><button data-v="help">Help</button>
+  <span class="me"><span id="office"></span> <span id="mewrap"><label for="me" style="display:inline;margin:0;color:#cfd8e3">Who are you?</label> <select id="me"></select></span></span></div>
+<div id="toast"></div>
+<div class="wrap">
+<div id="needsetup" class="hint" style="display:none">Not connected to Phone.com yet. Open <b>Settings</b> and fill in the token, account and extension. Until then, faxes queue and wait.</div>
+<div id="needname" class="hint" style="display:none">Pick your name at the top right. Everything is logged by name.</div>
+
+<div id="v-send" class="view"><div class="card"><h2>Send a fax</h2>
+  <div class="row"><div><label>To (name)</label><input id="s-name" list="booklist" placeholder="start typing a name from the book"><datalist id="booklist"></datalist></div>
+    <div><label>Fax number</label><input id="s-fax" placeholder="(818) 555-0123"></div></div>
+  <label>Subject</label><input id="s-subject" maxlength="80">
+  <label>Note for the cover sheet</label><textarea id="s-note" maxlength="600"></textarea>
+  <label>Document (PDF)</label><div class="drop" id="drop">Drop a PDF here, or click to choose</div><input type="file" id="s-file" accept="application/pdf" style="display:none">
+  <div class="row" style="align-items:center;margin-top:8px"><label style="display:flex;gap:6px;align-items:center;margin:0"><input type="checkbox" id="s-cover" checked style="width:auto"> Cover sheet</label>
+    <label style="display:flex;gap:6px;align-items:center;margin:0"><input type="checkbox" id="s-save" checked style="width:auto"> Save to address book</label></div>
+  <div style="margin-top:12px"><button class="go" id="s-go" disabled>Send</button> <span id="s-msg" class="muted"></span></div><div id="s-err" class="err"></div>
+</div>
+<div class="card"><h3>In the queue / recent</h3><table><thead><tr><th>When</th><th>To</th><th>Subject</th><th>Pages</th><th>By</th><th>Status</th><th></th></tr></thead><tbody id="outbox"></tbody></table></div></div>
+
+<div id="v-inbox" class="view" style="display:none"><div class="card"><h2>Incoming faxes</h2>
+  <div class="tabs" id="ifilters"><button data-f="handle" class="on">To handle</button><button data-f="new">New</button><button data-f="mine">Mine</button><button data-f="all">All</button><button data-f="spam">Spam</button><button id="pullnow" class="ghost" style="margin-left:auto">Check now</button></div>
+  <div id="inmsg" class="muted"></div>
+  <div id="bulk" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:0 0 6px"><label style="display:flex;gap:4px;align-items:center;margin:0"><input type="checkbox" id="selall" style="width:auto"> all</label><span class="muted" id="selcount"></span>
+    <button class="small ghost" data-b="open">Mark read</button><button class="small ghost" data-b="handle">Mark handled</button><select id="bulkassign" class="multi" style="width:auto"></select><button class="small ghost" data-b="spam">Spam</button><button class="small ghost" data-b="unspam">Not spam</button><button class="small" data-b="delete" style="background:var(--red)">Delete</button></div>
+  <table><thead><tr><th></th><th>Date / time</th><th>From</th><th>Pages</th><th class="multi">Assigned to</th><th>Status</th><th></th></tr></thead><tbody id="inbox"></tbody></table><div id="in-err" class="err"></div></div></div>
+
+<div id="v-log" class="view" style="display:none"><div class="card"><h2>Sent log</h2><input id="lq" placeholder="search by name, number, subject, date" style="max-width:420px">
+  <table style="margin-top:8px"><thead><tr><th>When</th><th>To</th><th>Subject</th><th>Pages</th><th>By</th><th>Status</th><th></th></tr></thead><tbody id="log"></tbody></table></div></div>
+
+<div id="v-book" class="view" style="display:none"><div class="card"><h2>Address book</h2>
+  <table><thead><tr><th>Name</th><th>Fax</th><th>Category</th><th></th></tr></thead><tbody id="book"></tbody></table>
+  <div class="row" style="margin-top:8px"><input id="b-name" placeholder="Name"><input id="b-fax" placeholder="Fax number"><input id="b-cat" placeholder="Category"><button class="small" id="b-add">Add</button></div></div></div>
+
+<div id="v-settings" class="view" style="display:none"><div class="card"><h2>Settings</h2>
+  <div class="row"><div><label>Office name (on the cover sheet)</label><input id="c-office" maxlength="80"></div><div><label>Our fax number</label><input id="c-fax" placeholder="(661) 555-0100"></div></div>
+  <h3>Fax setup (cover sheet)</h3>
+  <label>Second line under the office name (address, phone)</label><input id="c-line" maxlength="160" placeholder="123 Main St, Springfield - (555) 555-0100">
+  <div class="row"><div><label>Logo (JPG, up to 400 KB) - shows top right of the cover</label><input type="file" id="c-logo" accept="image/jpeg" style="padding:4px"><div id="logoline" class="muted" style="margin-top:4px"></div></div>
+    <div><label>Disclaimer at the bottom of the cover</label><select id="c-disc"><option value="none">None</option><option value="standard">Standard (wrong number - call and destroy)</option><option value="confidential">Confidential / protected information</option><option value="custom">Custom text</option></select>
+      <textarea id="c-disctext" maxlength="600" placeholder="your own wording" style="display:none;margin-top:4px"></textarea></div></div>
+  <div style="margin-top:6px"><a class="small" href="/api/cover_preview" target="_blank" style="display:inline-block;background:#e6eef7;color:#12314a;border:1px solid #9fb7cf;border-radius:6px;padding:4px 10px;text-decoration:none">Preview the cover sheet</a> <span class="muted">(save first)</span></div>
+  <h3>Phone.com</h3><div class="row"><div><label>API token (kept sealed on this PC; never shown again)</label><input id="c-token" type="password" placeholder="paste a new token to replace"></div>
+    <div><label>Account (voip id)</label><input id="c-voip"></div><div><label>Extension</label><input id="c-ext"></div></div>
+  <div style="margin-top:8px"><button class="go" id="c-save2">Save</button> <button class="small" id="c-test">Test connection</button> <span id="c-testmsg" class="muted"></span></div>
+  <h3>People <span class="muted" style="font-weight:400">(the name picker - shown on the whole-office plan; on one PC the first name is you)</span></h3><div id="people" style="display:flex;gap:6px;flex-wrap:wrap;margin:4px 0"></div><div class="row"><input id="p-new" placeholder="Add a name"><button class="small" id="p-add">Add</button></div>
+  <h3>Housekeeping</h3><div class="row"><div><label>Check for incoming every (minutes)</label><input id="c-pull" type="number" min="1"></div><div><label>Keep incoming (days)</label><input id="c-kin" type="number" min="1"></div><div><label>Keep sent (days)</label><input id="c-kout" type="number" min="1"></div></div>
+  <h3>Whole office</h3><div class="muted">Free FaxDesk is for this one PC. The whole-office plan opens the same page to every desk on your office network (http://this-pc-name:8750) - one fax line, everyone's inbox and send log in one place. <a href="https://freefaxdesk.com/office" target="_blank">About the whole-office plan</a> - get a licence key there.</div>
+  <div class="row"><div><label>Licence key</label><input id="c-lic" placeholder="FFD-XXXXX-XXXXX-XXXXX"></div><div><label>&nbsp;</label><label style="display:flex;gap:8px;align-items:center;margin:0"><input type="checkbox" id="c-lan" style="width:auto"> Open to the office network (restart FaxDesk after)</label></div></div><div id="licline" class="muted"></div>
+  <div style="margin-top:12px"><button class="go" id="c-save">Save</button> <span id="c-msg" class="muted"></span></div><div id="c-err" class="err"></div>
+  <div class="muted" style="margin-top:10px" id="healthline"></div></div></div>
+
+<div id="v-help" class="view" style="display:none"><div class="card"><h2>Help</h2>
+  <p><b>Send:</b> name and fax number (the book fills the number), subject, note, drop the PDF, Send. It queues; the desk sends it within a minute and the row turns <i>sent</i> or <i>failed</i> with the reason. <i>Resend</i> tries again.</p>
+  <p><b>Incoming:</b> new faxes appear within a few minutes. <i>Open</i> shows the PDF (print from there). <i>Assign</i> to a person; <i>Handled</i> with what was done; <i>Spam</i> hides a sender; <i>Always to</i> routes every future fax from that number to someone; <i>name</i> puts a name on a number.</p>
+  <p><b>Sent log:</b> everything sent or failed; <i>Confirmation</i> prints a one-page proof.</p>
+  <p><b>Settings:</b> Phone.com token, account, extension; people; how long to keep files. Nothing leaves this PC except the calls to Phone.com.</p>
+  <p class="muted">FaxDesk is free for one PC. Provided as is, without warranty. MIT licence.</p></div></div>
+</div>
+<script>
+(function(){
+var $=function(i){return document.getElementById(i)};var S={me:"",state:null,view:"send",filter:"handle",pdf:null,fname:""};
+function api(p,o){return fetch(p,Object.assign({credentials:"same-origin"},o||{})).then(function(r){return r.json().catch(function(){return{ok:false,error:"No answer ("+r.status+")"}})}).catch(function(){return{ok:false,error:"FaxDesk is not running."}})}
+function post(p,b){return api(p,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b||{})})}
+function el(t,x,c){var e=document.createElement(t);if(x!=null)e.textContent=x;if(c)e.className=c;return e}
+function when(ts){if(!ts)return"";var d=new Date(String(ts).replace(" ","T")),n=new Date();if(isNaN(d))return String(ts);var t=d.toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"});return d.toDateString()===n.toDateString()?"today "+t:d.toLocaleDateString(undefined,{month:"short",day:"numeric"})+" "+t}
+function whenFull(ts){if(!ts)return"";var d=new Date(String(ts).replace(" ","T"));if(isNaN(d))return String(ts);return d.toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"})+"  "+d.toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"})}
+var SEL={};function selCount(){var n=Object.keys(SEL).filter(function(k){return SEL[k]}).length;$("selcount").textContent=n?n+" selected":""}
+function toast(t){var x=$("toast");x.textContent=t;x.style.display="block";x.onclick=function(){x.style.display="none";show("inbox")}}
+function cookie(){var m=document.cookie.match(/(?:^|; )fd_name=([^;]*)/);return m?decodeURIComponent(m[1]):""}
+function setMe(v){S.me=v;document.cookie="fd_name="+encodeURIComponent(v)+"; path=/; max-age=43200; SameSite=Strict";$("needname").style.display=v?"none":"block";load()}
+function show(v){S.view=v;Array.prototype.forEach.call(document.querySelectorAll(".bar button[data-v]"),function(b){b.className=b.dataset.v===v?"on":""});Array.prototype.forEach.call(document.querySelectorAll(".view"),function(x){x.style.display=x.id==="v-"+v?"block":"none"});load()}
+Array.prototype.forEach.call(document.querySelectorAll(".bar button[data-v]"),function(b){b.addEventListener("click",function(){show(b.dataset.v)})});
+$("me").addEventListener("change",function(){setMe($("me").value)});
+var lastNew=null;
+function loadState(){return api("/api/state").then(function(r){if(!r.ok)return;S.state=r;var sel=$("me"),cur=sel.value;sel.textContent="";var o=el("option","-- pick --");o.value="";sel.appendChild(o);r.people.forEach(function(n){var x=el("option",n);x.value=n;sel.appendChild(x)});sel.value=S.me||cur||"";
+ $("office").textContent=r.office||"";S.multi=!!r.licensed;$("mewrap").style.display=S.multi?"inline":"none";$("needname").style.display=(S.multi&&!S.me)?"block":"none";
+ if(!S.multi){var one=(r.people&&r.people[0])||"Desk";if(S.me!==one){S.me=one;document.cookie="fd_name="+encodeURIComponent(one)+"; path=/; max-age=43200; SameSite=Strict";if(r.people.indexOf(one)<0)post("/api/people",{people:[one]})}}$("needsetup").style.display=r.setup_done?"none":"block";$("b-in").textContent=r.counts.to_handle;$("b-in").className="badge"+(r.counts.to_handle?"":" zero");
+ document.title=(r.counts.new?"("+r.counts.new+") ":"")+"FaxDesk";if(lastNew!==null&&r.counts.new>lastNew)toast("New fax came in - click to open");lastNew=r.counts.new;
+ var dl=$("booklist");dl.textContent="";r.book.forEach(function(b){var x=el("option");x.value=b.name;dl.appendChild(x)})})}
+function load(){loadState().then(function(){({send:loadOut,inbox:loadIn,log:loadLog,book:loadBook,settings:loadSettings}[S.view]||function(){})()})}
+// ---- send
+$("s-name").addEventListener("change",function(){var b=(S.state&&S.state.book||[]).filter(function(x){return x.name===$("s-name").value})[0];if(b){$("s-fax").value=b.fax;}});
+function takeFile(f){if(!f||f.type!=="application/pdf"&&!/\.pdf$/i.test(f.name)){$("s-err").textContent="Only PDF files can be faxed.";return}if(f.size>20*1024*1024){$("s-err").textContent="That PDF is over 20 MB.";return}var fr=new FileReader();fr.onload=function(){S.pdf=String(fr.result).split(",")[1];S.fname=f.name;$("drop").textContent=f.name+"  ("+Math.round(f.size/1024)+" KB)";$("drop").className="drop has";$("s-go").disabled=false;$("s-err").textContent=""};fr.readAsDataURL(f)}
+$("drop").addEventListener("click",function(){$("s-file").click()});$("s-file").addEventListener("change",function(){takeFile($("s-file").files[0])});
+$("drop").addEventListener("dragover",function(e){e.preventDefault()});$("drop").addEventListener("drop",function(e){e.preventDefault();takeFile(e.dataTransfer.files[0])});
+$("s-go").addEventListener("click",function(){$("s-err").textContent="";if(!S.me){$("s-err").textContent="Pick your name first.";return}var fax=$("s-fax").value.replace(/\D/g,"");if(fax.length===11&&fax[0]==="1")fax=fax.slice(1);if(fax.length!==10){$("s-err").textContent="The fax number needs 10 digits.";return}
+ if(!window.confirm("Send "+($("s-name").value||"")+" at ("+fax.slice(0,3)+") "+fax.slice(3,6)+"-"+fax.slice(6)+"?"))return;$("s-go").disabled=true;
+ post("/api/send",{to:fax,to_name:$("s-name").value,subject:$("s-subject").value,note:$("s-note").value,pdf:S.pdf,filename:S.fname,cover:$("s-cover").checked,save_to_book:$("s-save").checked}).then(function(r){if(!r.ok){$("s-err").textContent=r.error;$("s-go").disabled=false;return}
+  $("s-msg").textContent="Queued ("+r.pages+" pages). It goes out within a minute.";S.pdf=null;$("drop").textContent="Drop a PDF here, or click to choose";$("drop").className="drop";["s-name","s-fax","s-subject","s-note"].forEach(function(i){$(i).value=""});loadOut()})});
+function loadOut(){api("/api/outbox").then(function(r){var tb=$("outbox");tb.textContent="";(r.rows||[]).slice(0,30).forEach(function(m){var tr=el("tr");tr.appendChild(el("td",when(m.queued_at)));tr.appendChild(el("td",(m.to_name?m.to_name+" ":"")+m.to_pretty));tr.appendChild(el("td",m.subject||""));tr.appendChild(el("td",String(m.pages||"")));tr.appendChild(el("td",m.by||""));
+ var st=el("td");st.appendChild(el("span",m.status+(m.error?" - "+m.error:""),"pill"+(m.status==="sent"?" green":m.status==="failed"?" red":"")));tr.appendChild(st);var ac=el("td");var v=el("a","View");v.href="/api/file?id="+m.id;v.target="_blank";ac.appendChild(v);
+ if(m.status==="sent"||m.status==="failed"){ac.appendChild(document.createTextNode("  "));var c=el("a","Confirmation");c.href="/api/confirm?id="+m.id;c.target="_blank";ac.appendChild(c)}if(m.status==="failed"){ac.appendChild(document.createTextNode("  "));var rb=el("button","Resend","small");rb.addEventListener("click",function(){post("/api/resend",{id:m.id}).then(loadOut)});ac.appendChild(rb)}tr.appendChild(ac);tb.appendChild(tr)})})}
+// ---- inbox
+Array.prototype.forEach.call(document.querySelectorAll("#ifilters button[data-f]"),function(b){b.addEventListener("click",function(){S.filter=b.dataset.f;Array.prototype.forEach.call(document.querySelectorAll("#ifilters button[data-f]"),function(x){x.className=x===b?"on":""});loadIn()})});
+$("selall").addEventListener("change",function(){(S.visible||[]).forEach(function(id){SEL[id]=$("selall").checked});loadIn()});
+function bulk(what,extra){var ids=Object.keys(SEL).filter(function(k){return SEL[k]});if(!ids.length){$("in-err").textContent="Tick some faxes first.";return}if(what==="delete"&&!window.confirm("Delete "+ids.length+" fax"+(ids.length===1?"":"es")+" from this PC? This cannot be undone."))return;
+ post("/api/inbox/bulk",Object.assign({what:what,ids:ids},extra||{})).then(function(r){if(!r.ok){$("in-err").textContent=r.error;return}SEL={};$("selall").checked=false;loadIn()})}
+Array.prototype.forEach.call(document.querySelectorAll("#bulk button[data-b]"),function(b){b.addEventListener("click",function(){bulk(b.dataset.b,b.dataset.b==="handle"?{note:"Handled"}:{})})});
+$("bulkassign").addEventListener("change",function(){if($("bulkassign").value)bulk("assign",{to:$("bulkassign").value});$("bulkassign").value=""});
+$("pullnow").addEventListener("click",function(){$("inmsg").textContent="Checking...";post("/api/pull_now").then(function(r){$("inmsg").textContent=r.ok?(r.new?r.new+" new":"Nothing new")+(r.error?" - "+r.error:""):r.error;loadIn()})});
+function act(p,b){$("in-err").textContent="";return post(p,b).then(function(r){if(!r.ok)$("in-err").textContent=r.error||"That did not work.";loadIn()})}
+function loadIn(){api("/api/inbox").then(function(r){var tb=$("inbox");tb.textContent="";var rows=(r.rows||[]).filter(function(m){if(S.filter==="spam")return m.spam;if(m.spam)return false;if(S.filter==="new")return m.is_new;if(S.filter==="mine")return m.assigned_to===S.me&&!m.handled;if(S.filter==="handle")return!m.handled;return true});
+ if(!rows.length){var t0=el("tr"),d0=el("td","Nothing here.","muted");d0.colSpan=7;t0.appendChild(d0);tb.appendChild(t0)}
+ S.visible=rows.map(function(m){return m.id});selCount();document.body.className=S.multi?"":"single";
+ var ba=$("bulkassign");ba.textContent="";var o0=el("option","Assign to...");o0.value="";ba.appendChild(o0);(S.state.people||[]).forEach(function(n){var o=el("option",n);o.value=n;ba.appendChild(o)});
+ rows.forEach(function(m){var tr=el("tr",null,m.is_new?"new":(m.assigned_to===S.me&&!m.handled?"mine":""));var cb0=el("td");var cb=document.createElement("input");cb.type="checkbox";cb.style.width="auto";cb.checked=!!SEL[m.id];cb.addEventListener("change",function(){SEL[m.id]=cb.checked;selCount()});cb0.appendChild(cb);tr.appendChild(cb0);tr.appendChild(el("td",whenFull(m.received),"nw"));var fr=el("td");fr.appendChild(el("div",m.from_name||m.from_pretty||"unknown"));if(m.from_name)fr.appendChild(el("div",m.from_pretty,"muted"));
+  if(m.from){var nm=el("a",m.from_name?"rename":"name this sender","muted");nm.href="#";nm.addEventListener("click",function(e){e.preventDefault();var v=window.prompt("Name for "+m.from_pretty,m.from_name||"");if(v===null)return;act("/api/inbox/name",{id:m.id,name:v})});fr.appendChild(nm)}tr.appendChild(fr);
+  tr.appendChild(el("td",String(m.pages||"")));var as=el("td");var sel=document.createElement("select");var o0=el("option","- nobody -");o0.value="";sel.appendChild(o0);(S.state.people||[]).forEach(function(n){var o=el("option",n);o.value=n;sel.appendChild(o)});sel.value=m.assigned_to||"";sel.addEventListener("change",function(){act("/api/inbox/assign",{id:m.id,to:sel.value})});as.appendChild(sel);as.className="multi";
+  if(m.from){var rl=el("a",m.rule_to?"always to "+m.rule_to+" - stop":(m.assigned_to?"always send this sender here":""),"muted");rl.href="#";rl.style.display="block";rl.addEventListener("click",function(e){e.preventDefault();act("/api/inbox/rule",{id:m.id,to:m.rule_to?"":m.assigned_to})});if(rl.textContent)as.appendChild(rl)}tr.appendChild(as);
+  var st=el("td");st.appendChild(el("span",m.handled?"handled - "+(m.handled_note||"")+" ("+m.handled_by+")":(m.opened_at?"opened by "+m.opened_by:"NEW"),"pill"+(m.handled?" green":m.opened_at?"":" red")));tr.appendChild(st);
+  var ac=el("td");var v=el("a","Open");v.href="/api/file?id="+m.id;v.target="_blank";v.addEventListener("click",function(){setTimeout(loadIn,800)});ac.appendChild(v);ac.appendChild(document.createTextNode("  "));
+  if(!m.handled){var hs=document.createElement("select");var h0=el("option","Status...");h0.value="";hs.appendChild(h0);(S.state.outcomes||[]).forEach(function(x){var o=el("option",x);o.value=x;hs.appendChild(o)});hs.style.width="auto";hs.addEventListener("change",function(){if(hs.value)act("/api/inbox/handle",{id:m.id,note:hs.value})});ac.appendChild(hs)}
+  else{var ub=el("button","Reopen","small ghost");ub.addEventListener("click",function(){act("/api/inbox/unhandle",{id:m.id})});ac.appendChild(ub)}
+  ac.appendChild(document.createTextNode("  "));var sb=el("button",m.spam?"Not spam":"Spam","small ghost");sb.addEventListener("click",function(){act("/api/inbox/spam",{id:m.id,spam:!m.spam})});ac.appendChild(sb);tr.appendChild(ac);tb.appendChild(tr)})})}
+// ---- log
+$("lq").addEventListener("input",function(){loadLog()});
+function loadLog(){api("/api/log?q="+encodeURIComponent($("lq").value)).then(function(r){var tb=$("log");tb.textContent="";(r.rows||[]).forEach(function(m){var tr=el("tr");tr.appendChild(el("td",when(m.ts)));tr.appendChild(el("td",(m.to_name?m.to_name+" ":"")+m.to_pretty));tr.appendChild(el("td",m.subject||""));tr.appendChild(el("td",String(m.pages||"")));tr.appendChild(el("td",m.from||""));
+ var st=el("td");st.appendChild(el("span",m.status+(m.error?" - "+m.error:""),"pill"+(m.status==="sent"?" green":" red")));tr.appendChild(st);var ac=el("td");var v=el("a","View");v.href="/api/file?id="+m.id;v.target="_blank";ac.appendChild(v);ac.appendChild(document.createTextNode("  "));var c=el("a","Confirmation");c.href="/api/confirm?id="+m.id;c.target="_blank";ac.appendChild(c);tr.appendChild(ac);tb.appendChild(tr)})})}
+// ---- book
+function saveBook(rows){return post("/api/book",{book:rows}).then(function(){load()})}
+function loadBook(){var tb=$("book");tb.textContent="";(S.state.book||[]).forEach(function(b,i){var tr=el("tr");tr.appendChild(el("td",b.name));tr.appendChild(el("td",b.fax));tr.appendChild(el("td",b.category||""));var ac=el("td");var d=el("button","Remove","small ghost");d.addEventListener("click",function(){var rows=S.state.book.slice();rows.splice(i,1);saveBook(rows)});ac.appendChild(d);tr.appendChild(ac);tb.appendChild(tr)})}
+$("b-add").addEventListener("click",function(){if(!$("b-name").value||!$("b-fax").value)return;var rows=(S.state.book||[]).concat([{name:$("b-name").value,fax:$("b-fax").value,category:$("b-cat").value}]);saveBook(rows).then(function(){$("b-name").value=$("b-fax").value=$("b-cat").value=""})});
+// ---- settings
+function loadSettings(){api("/health").then(function(h){$("healthline").textContent="FaxDesk "+h.version+" - state in "+h.state_dir+" - last check for incoming "+(h.last_pull||"never")+(h.pull_ok===false?" (problem: "+h.pull_error+")":"")+" - queued "+h.queued});
+ api("/api/state").then(function(r){$("c-office").value=r.office||"";$("c-fax").value=r.fax_number||"";$("c-lan").checked=!!r.lan;$("c-line").value=r.office_line||"";$("licline").textContent=r.licensed?"Licensed (key ending "+r.license_hint+")":"No licence key - single PC.";$("c-voip").value=r.voip_id||"";$("c-ext").value=r.extension||"";$("c-token").placeholder=r.has_token?"a token is saved - paste a new one only to replace it":"paste your Phone.com API token";$("c-disc").value=r.disclaimer||"standard";$("c-disctext").value=r.disclaimer_text||"";$("c-disctext").style.display=$("c-disc").value==="custom"?"block":"none";
+ if(r.pull_minutes)$("c-pull").value=r.pull_minutes;if(r.keep_in_days)$("c-kin").value=r.keep_in_days;if(r.keep_out_days)$("c-kout").value=r.keep_out_days;
+ var ll=$("logoline");ll.textContent="";if(r.has_logo){var im=document.createElement("img");im.src="/api/logo?"+Date.now();im.style.cssText="max-height:40px;vertical-align:middle;margin-right:8px";ll.appendChild(im);var rm=el("button","Remove logo","small ghost");rm.addEventListener("click",function(){post("/api/logo",{clear:true}).then(load)});ll.appendChild(rm)}else ll.textContent="No logo yet.";var pw=$("people");pw.textContent="";r.people.forEach(function(n){var b=el("button",n+"  x","small ghost");b.addEventListener("click",function(){if(window.confirm("Remove "+n+" from the picker?"))post("/api/people",{people:r.people.filter(function(x){return x!==n})}).then(load)});pw.appendChild(b)})})}
+$("c-disc").addEventListener("change",function(){$("c-disctext").style.display=$("c-disc").value==="custom"?"block":"none"});
+$("c-logo").addEventListener("change",function(){var f=$("c-logo").files[0];if(!f)return;if(f.size>400*1024){$("c-err").textContent="Logo over 400 KB. Save it smaller.";return}var fr=new FileReader();fr.onload=function(){post("/api/logo",{jpeg:String(fr.result).split(",")[1]}).then(function(r){if(!r.ok){$("c-err").textContent=r.error;return}$("c-logo").value="";load()})};fr.readAsDataURL(f)});
+$("p-add").addEventListener("click",function(){var v=$("p-new").value.trim();if(!v)return;post("/api/people",{people:(S.state.people||[]).concat([v])}).then(function(){$("p-new").value="";load()})});
+$("c-test").addEventListener("click",function(){$("c-testmsg").textContent="Testing...";post("/api/test").then(function(r){$("c-testmsg").textContent=r.ok?"OK - account seen: "+(r.sees_configured?"yes":"NO (check the voip id)")+(r.numbers&&r.numbers.length?"; fax numbers: "+r.numbers.map(function(n){return n.number}).join(", "):""):("Problem: "+r.error)})});
+$("c-save2").addEventListener("click",function(){$("c-save").click()});
+$("c-save").addEventListener("click",function(){$("c-err").textContent="";var b={office:$("c-office").value,fax_number:$("c-fax").value,voip_id:$("c-voip").value,extension:$("c-ext").value,lan:$("c-lan").checked,license:$("c-lic").value,office_line:$("c-line").value,disclaimer:$("c-disc").value,disclaimer_text:$("c-disctext").value};if($("c-token").value)b.token=$("c-token").value;if($("c-pull").value)b.pull_minutes=$("c-pull").value;if($("c-kin").value)b.keep_in_days=$("c-kin").value;if($("c-kout").value)b.keep_out_days=$("c-kout").value;
+ post("/api/setup",b).then(function(r){if(!r.ok){$("c-err").textContent=r.error;return}$("c-token").value="";$("c-msg").textContent="Saved."+(r.setup_done?"":" (not complete yet)")+(r.restart_needed?" Restart FaxDesk for the whole-office switch to take effect.":"");load()})});
+// ---- boot
+S.me=cookie();$("needname").style.display=S.me?"none":"block";load();setInterval(function(){if(!document.hidden)load()},20000);
+})();
+</script></body></html>

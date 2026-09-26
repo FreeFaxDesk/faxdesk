@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+build/
+dist/
+*.spec
+*.log
+*.part
+# never: keys, tokens, state, the seller-side key maker, anything from the office
+private/
+config.json
+logo.jpg
+*.pdf
+!docs/**/*.pdf
