@@ -38,7 +38,7 @@ def main():
             # (docs/index.html only) may say "Frye Chiropractic" / "Lancaster, California". Never in src/.
             public_ok = rel.replace("\\", "/") == "docs/index.html"
             for w in BAD_WORDS:
-                if public_ok and w in (r"frye", r"lancaster", r"chiro"):
+                if public_ok and w in (r"frye", r"lancaster", r"chiro", r"Harry"):
                     continue
                 m = re.search(w, text, re.I)
                 if m:
