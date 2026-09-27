@@ -13,7 +13,7 @@ jobs:
         with: { python-version: "3.12" }
       - run: python -m pip install pyinstaller
       - run: cd src && python -m faxdesk --selftest
-      - run: cd src && python -m PyInstaller --noconfirm --onefile --noconsole --name FaxDesk --add-data "faxdesk\www;faxdesk\www" run_faxdesk.py
+      - run: cd src && python -m PyInstaller --noconfirm --onefile --noconsole --name FaxDesk --icon faxdesk\www\faxdesk.ico --add-data "faxdesk\www;faxdesk\www" run_faxdesk.py
       - run: Compress-Archive -Path src\faxdesk, src\FaxDesk.command, src\README.txt, src\run_faxdesk.py -DestinationPath FreeFaxDesk-source.zip
       - uses: softprops/action-gh-release@v2
         with:

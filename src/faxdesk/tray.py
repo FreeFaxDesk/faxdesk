@@ -120,6 +120,15 @@ def run(url, on_quit, tip="FaxDesk - click to open", state_dir="."):
     except Exception:
         icon = None
     if not icon or icon == 1:
+        try:                                                   # running from source: the .ico shipped in www/
+            import os
+            ico = os.path.join(os.path.dirname(os.path.abspath(__file__)), "www", "faxdesk.ico")
+            u32.LoadImageW.restype = wintypes.HANDLE
+            u32.LoadImageW.argtypes = [wintypes.HINSTANCE, wintypes.LPCWSTR, wintypes.UINT, ctypes.c_int, ctypes.c_int, wintypes.UINT]
+            icon = u32.LoadImageW(None, ico, 1, 0, 0, 0x00000010 | 0x00000040) if os.path.exists(ico) else None   # IMAGE_ICON, LR_LOADFROMFILE|LR_DEFAULTSIZE
+        except Exception:
+            icon = None
+    if not icon or icon == 1:
         icon = u32.LoadIconW(None, ctypes.cast(IDI_APPLICATION, wintypes.LPCWSTR))
     nid.cbSize = ctypes.sizeof(NOTIFYICONDATA)
     nid.hWnd = hwnd

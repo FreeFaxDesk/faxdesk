@@ -14,7 +14,7 @@ from . import license, pdfmini, phonecom
 from .store import Store, clean, now
 from .worker import Worker
 
-VERSION = "0.3.2"
+VERSION = "0.3.3"
 HERE = Path(getattr(sys, "_MEIPASS", "")) / "faxdesk" if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
 MAX_PDF = 20 * 1024 * 1024
 OUTCOMES = ["Printed", "Filed", "Given to someone", "Replied", "Junk"]
@@ -248,7 +248,11 @@ class App:
                 return 400, {"ok": False, "error": "That name is not on the list."}
             m.update(assigned_to=to, assigned_by=me if to else "", assigned_at=now() if to else "")
         elif what == "handle":
-            m.update(handled=True, handled_by=me, handled_at=now(), handled_note=clean(body.get("note"), 120))
+            note = clean(body.get("note"), 120)
+            if m.get("handled"):
+                m.update(handled_note=note)                    # second click: the reason; who handled it stays
+            else:
+                m.update(handled=True, handled_by=me, handled_at=now(), handled_note=note)
         elif what == "unhandle":
             m.update(handled=False, handled_by="", handled_at="", handled_note="")
         elif what == "unopen":
@@ -391,6 +395,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, (HERE / "www" / "index.html").read_bytes(), "text/html; charset=utf-8")
             if path == "/help":
                 return self._send(200, (HERE / "www" / "help.html").read_bytes(), "text/html; charset=utf-8")
+            if path in ("/favicon.ico", "/favicon.svg"):
+                return self._send(200, (HERE / "www" / path[1:]).read_bytes(), "image/x-icon" if path.endswith(".ico") else "image/svg+xml")
             if path == "/api/state":
                 return self._send(200, app.state(me))
             if path == "/api/logo":

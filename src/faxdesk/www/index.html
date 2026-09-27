@@ -1,13 +1,13 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>FaxDesk</title>
+<html lang="en"><head><meta charset="utf-8"><link rel="icon" href="/favicon.ico" sizes="any"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><title>FaxDesk</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
 .nw{white-space:nowrap}
 body.single .multi{display:none}
-:root{--blue:#1d4a7a;--ink:#1b2430;--muted:#5a6470;--line:#d8dee6;--bg:#f4f6f9;--red:#b3261e;--green:#00664f}
+:root{--blue:#0d2a4a;--ink:#14202e;--muted:#5b6573;--line:#d9d4ca;--bg:#f6f4ef;--red:#d9481c;--green:#0d2a4a}
 *{box-sizing:border-box}body{margin:0;font:14px/1.4 Segoe UI,Arial,sans-serif;color:var(--ink);background:var(--bg)}
 .bar{display:flex;align-items:center;gap:6px;padding:6px 12px;background:#0d2a4a;color:#fff;position:sticky;top:0;z-index:5}
-.bar b{font-size:16px;margin-right:6px}.bar button{background:#1d4a7a;color:#fff;border:0;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:13px}
+.bar b{font-size:16px;margin-right:6px}.bar button{background:#1a3d66;color:#fff;border:0;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:13px}
 .bar button.on{background:#fff;color:#0d2a4a}.bar .me{margin-left:auto;display:flex;gap:6px;align-items:center;font-size:13px}.bar select{padding:6px;border-radius:6px;border:0}
 .badge{display:inline-block;min-width:18px;background:var(--red);color:#fff;border-radius:12px;padding:0 6px;font-size:12px;margin-left:5px}.badge.zero{display:none}
 .wrap{padding:12px;max-width:960px;margin:0 auto}.card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px}
@@ -50,7 +50,7 @@ td{padding:5px 6px;border-bottom:1px solid #eef1f5;vertical-align:top}tr.new td{
   <div class="tabs" id="ifilters"><button data-f="handle" class="on">To handle</button><button data-f="new">New</button><button data-f="mine">Mine</button><button data-f="all">All</button><button data-f="spam">Spam</button><button id="pullnow" class="ghost" style="margin-left:auto">Check now</button></div>
   <div id="inmsg" class="muted"></div>
   <div id="bulk" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:0 0 6px"><label style="display:flex;gap:4px;align-items:center;margin:0"><input type="checkbox" id="selall" style="width:auto"> all</label><span class="muted" id="selcount"></span>
-    <button class="small ghost" data-b="open">Mark read</button><button class="small ghost" data-b="handle">Mark handled</button><select id="bulkassign" class="multi" style="width:auto"></select><button class="small ghost" data-b="spam">Spam</button><button class="small ghost" data-b="unspam">Not spam</button><button class="small" data-b="delete" style="background:var(--red)">Delete</button></div>
+    <button class="small ghost" data-b="open">Mark read</button><button class="small go" data-b="handle">Done</button><select id="bulkassign" class="multi" style="width:auto"></select><button class="small ghost" data-b="spam">Spam</button><button class="small ghost" data-b="unspam">Not spam</button><button class="small" data-b="delete" style="background:var(--red)">Delete</button></div>
   <table><thead><tr><th></th><th>Date / time</th><th>From</th><th>Pages</th><th class="multi">Assigned to</th><th>Status</th><th></th></tr></thead><tbody id="inbox"></tbody></table><div id="in-err" class="err"></div></div></div>
 
 <div id="v-log" class="view" style="display:none"><div class="card"><h2>Sent log</h2><input id="lq" placeholder="search by name, number, subject, date" style="max-width:420px">
@@ -80,7 +80,7 @@ td{padding:5px 6px;border-bottom:1px solid #eef1f5;vertical-align:top}tr.new td{
 
 <div id="v-help" class="view" style="display:none"><div class="card"><h2>Help</h2>
   <p><b>Send:</b> name and fax number (the book fills the number), subject, note, drop the PDF, Send. It queues; the desk sends it within a minute and the row turns <i>sent</i> or <i>failed</i> with the reason. <i>Resend</i> tries again.</p>
-  <p><b>Incoming:</b> new faxes appear within a few minutes. <i>Open</i> shows the PDF (print from there). <i>Assign</i> to a person; <i>Handled</i> with what was done; <i>Spam</i> hides a sender; <i>Always to</i> routes every future fax from that number to someone; <i>name</i> puts a name on a number.</p>
+  <p><b>Incoming:</b> new faxes appear within a few minutes. <i>Open</i> shows the PDF (print from there). <i>Assign</i> to a person; <i>Done</i> marks it handled by you; click <i>+why</i> afterwards if you want to record what was done (Junk offers to block the sender); <i>Spam</i> hides a sender; <i>Always to</i> routes every future fax from that number to someone; <i>name</i> puts a name on a number.</p>
   <p><b>Sent log:</b> everything sent or failed; <i>Confirmation</i> prints a one-page proof.</p>
   <p><b>Settings:</b> Phone.com token, account, extension; people; how long to keep files. Nothing leaves this PC except the calls to Phone.com.</p>
   <p class="muted">FaxDesk is free for one PC. Provided as is, without warranty. MIT licence.</p></div></div>
@@ -124,7 +124,7 @@ Array.prototype.forEach.call(document.querySelectorAll("#ifilters button[data-f]
 $("selall").addEventListener("change",function(){(S.visible||[]).forEach(function(id){SEL[id]=$("selall").checked});loadIn()});
 function bulk(what,extra){var ids=Object.keys(SEL).filter(function(k){return SEL[k]});if(!ids.length){$("in-err").textContent="Tick some faxes first.";return}if(what==="delete"&&!window.confirm("Delete "+ids.length+" fax"+(ids.length===1?"":"es")+" from this PC? This cannot be undone."))return;
  post("/api/inbox/bulk",Object.assign({what:what,ids:ids},extra||{})).then(function(r){if(!r.ok){$("in-err").textContent=r.error;return}SEL={};$("selall").checked=false;loadIn()})}
-Array.prototype.forEach.call(document.querySelectorAll("#bulk button[data-b]"),function(b){b.addEventListener("click",function(){bulk(b.dataset.b,b.dataset.b==="handle"?{note:"Handled"}:{})})});
+Array.prototype.forEach.call(document.querySelectorAll("#bulk button[data-b]"),function(b){b.addEventListener("click",function(){bulk(b.dataset.b,{})})});
 $("bulkassign").addEventListener("change",function(){if($("bulkassign").value)bulk("assign",{to:$("bulkassign").value});$("bulkassign").value=""});
 $("pullnow").addEventListener("click",function(){$("inmsg").textContent="Checking...";post("/api/pull_now").then(function(r){$("inmsg").textContent=r.ok?(r.new?r.new+" new":"Nothing new")+(r.error?" - "+r.error:""):r.error;loadIn()})});
 function act(p,b){$("in-err").textContent="";return post(p,b).then(function(r){if(!r.ok)$("in-err").textContent=r.error||"That did not work.";loadIn()})}
@@ -136,10 +136,11 @@ function loadIn(){api("/api/inbox").then(function(r){var tb=$("inbox");tb.textCo
   if(m.from){var nm=el("a",m.from_name?"rename":"name this sender","muted");nm.href="#";nm.addEventListener("click",function(e){e.preventDefault();var v=window.prompt("Name for "+m.from_pretty,m.from_name||"");if(v===null)return;act("/api/inbox/name",{id:m.id,name:v})});fr.appendChild(nm)}tr.appendChild(fr);
   tr.appendChild(el("td",String(m.pages||"")));var as=el("td");var sel=document.createElement("select");var o0=el("option","- nobody -");o0.value="";sel.appendChild(o0);(S.state.people||[]).forEach(function(n){var o=el("option",n);o.value=n;sel.appendChild(o)});sel.value=m.assigned_to||"";sel.addEventListener("change",function(){act("/api/inbox/assign",{id:m.id,to:sel.value})});as.appendChild(sel);as.className="multi";
   if(m.from){var rl=el("a",m.rule_to?"always to "+m.rule_to+" - stop":(m.assigned_to?"always send this sender here":""),"muted");rl.href="#";rl.style.display="block";rl.addEventListener("click",function(e){e.preventDefault();act("/api/inbox/rule",{id:m.id,to:m.rule_to?"":m.assigned_to})});if(rl.textContent)as.appendChild(rl)}tr.appendChild(as);
-  var st=el("td");st.appendChild(el("span",m.handled?"handled - "+(m.handled_note||"")+" ("+m.handled_by+")":(m.opened_at?"opened by "+m.opened_by:"NEW"),"pill"+(m.handled?" green":m.opened_at?"":" red")));tr.appendChild(st);
+  var st=el("td");st.appendChild(el("span",m.handled?"handled by "+m.handled_by+(m.handled_note?" - "+m.handled_note:""):(m.opened_at?"opened by "+m.opened_by:"NEW"),"pill"+(m.handled?" green":m.opened_at?"":" red")));tr.appendChild(st);
   var ac=el("td");var v=el("a","Open");v.href="/api/file?id="+m.id;v.target="_blank";v.addEventListener("click",function(){setTimeout(loadIn,800)});ac.appendChild(v);ac.appendChild(document.createTextNode("  "));
-  if(!m.handled){var hs=document.createElement("select");var h0=el("option","Status...");h0.value="";hs.appendChild(h0);(S.state.outcomes||[]).forEach(function(x){var o=el("option",x);o.value=x;hs.appendChild(o)});hs.style.width="auto";hs.addEventListener("change",function(){if(hs.value)act("/api/inbox/handle",{id:m.id,note:hs.value})});ac.appendChild(hs)}
-  else{var ub=el("button","Reopen","small ghost");ub.addEventListener("click",function(){act("/api/inbox/unhandle",{id:m.id})});ac.appendChild(ub)}
+  if(!m.handled){var db=el("button","Done","small go");db.title="Mark handled by you. Add a reason after, if you want.";db.addEventListener("click",function(){act("/api/inbox/handle",{id:m.id,note:""})});ac.appendChild(db)}
+  else{if(!m.handled_note){var why=el("a","+why","muted");why.href="#";why.addEventListener("click",function(e){e.preventDefault();why.style.display="none";var box=el("span");(S.state.outcomes||[]).forEach(function(x){var c=el("button",x,"small ghost");c.style.margin="0 4px 4px 0";c.addEventListener("click",function(){if(x==="Junk"&&window.confirm("Block this sender too? (You can undo it with Not spam.)")){act("/api/inbox/spam",{id:m.id,spam:true}).then(function(){act("/api/inbox/handle",{id:m.id,note:x})})}else{act("/api/inbox/handle",{id:m.id,note:x})}});box.appendChild(c)});ac.appendChild(box)});ac.appendChild(why);ac.appendChild(document.createTextNode("  "))}
+    var ub=el("button","Reopen","small ghost");ub.addEventListener("click",function(){act("/api/inbox/unhandle",{id:m.id})});ac.appendChild(ub)}
   ac.appendChild(document.createTextNode("  "));var sb=el("button",m.spam?"Not spam":"Spam","small ghost");sb.addEventListener("click",function(){act("/api/inbox/spam",{id:m.id,spam:!m.spam})});ac.appendChild(sb);tr.appendChild(ac);tb.appendChild(tr)})})}
 // ---- log
 $("lq").addEventListener("input",function(){loadLog()});

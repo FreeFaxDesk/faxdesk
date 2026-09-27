@@ -124,15 +124,17 @@ def run():
         code, r = _j(base, "POST", "/api/inbox/name", {"id": row["id"], "name": "Dr Test's office"})
         code, r = _j(base, "POST", "/api/inbox/assign", {"id": row["id"], "to": "Sam"})
         code, r = _j(base, "POST", "/api/inbox/rule", {"id": row["id"], "to": "Sam"})
-        code, r = _j(base, "POST", "/api/inbox/handle", {"id": row["id"], "note": "Filed"})
+        code, r = _j(base, "POST", "/api/inbox/handle", {"id": row["id"], "note": ""})          # one click: Done
+        code, r = _j(base, "POST", "/api/inbox/handle", {"id": row["id"], "note": "Filed"}, name="Sam")   # second click: the why
         code, ib = _j(base, "GET", "/api/inbox", name="Sam")
         row = ib["rows"][0]
         assert row["from_name"] == "Dr Test's office" and row["assigned_to"] == "Sam" and row["rule_to"] == "Sam" and row["handled"] and not row["is_new"]
+        assert row["handled_note"] == "Filed" and row["handled_by"] != "Sam"                    # the why does not change who did it
         code, r = _j(base, "POST", "/api/inbox/assign", {"id": row["id"], "to": "Nobody"})
         assert code == 400
         code, r = _j(base, "POST", "/api/inbox/spam", {"id": row["id"]}, name="")
         assert code == 400                                                             # no name, no action
-        ok.append("inbox: pull once, name sender, assign, rule, handle; names validated; no name = no action")
+        ok.append("inbox: pull once, name sender, assign, rule, Done then +why; names validated; no name = no action")
         # settings re-save with blank account/extension keeps them; bulk actions; logo + disclaimer on the cover
         code, r = _j(base, "POST", "/api/setup", {"office": "Test Office", "voip_id": "", "extension": "", "office_line": "1 Main St", "disclaimer": "confidential"})
         assert r["setup_done"] and st.config()["voip_id"] == "999" and st.config()["disclaimer"] == "confidential"

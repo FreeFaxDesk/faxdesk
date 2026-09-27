@@ -10,3 +10,5 @@ Needs Python 3.9 or newer (python.org; on Windows tick "Add to PATH").
 Free for one PC. The "whole office" switch in Settings (other desks on your network) is the paid plan.
 MIT licence. Provided as is, without warranty of any kind.
 Uninstall: uninstall.bat (stops it, removes the logon task, optionally wipes %LOCALAPPDATA%\FaxDesk), then delete the folder.
+
+1.0.1 - Done button replaces the Status dropdown (one click; +why afterwards for the reason; Junk offers to block the sender). New icon and tray icon. Coffee link in Settings.
