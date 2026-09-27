@@ -14,7 +14,7 @@ from . import license, pdfmini, phonecom
 from .store import Store, clean, now
 from .worker import Worker
 
-VERSION = "0.3.3"
+VERSION = "0.3.4"
 HERE = Path(getattr(sys, "_MEIPASS", "")) / "faxdesk" if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
 MAX_PDF = 20 * 1024 * 1024
 OUTCOMES = ["Printed", "Filed", "Given to someone", "Replied", "Junk"]

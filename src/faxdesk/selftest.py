@@ -170,7 +170,18 @@ def run():
         code, r = _j(base, "POST", "/api/setup", {"lan": True, "license": key})
         assert r["ok"] and st.config()["lan"] is True
         ok.append("licence: free = this PC; a key opens the LAN switch")
-        ok.append("pure ASCII sources")
+        # Windows-only code (tray) cannot run here, so at least compile it and make sure no function shadows a module name
+        import symtable, pathlib
+        for f in pathlib.Path(__file__).parent.glob("*.py"):
+            src = f.read_text(encoding="ascii")
+            def _walk(t):
+                for c in t.get_children():
+                    if c.get_type() == "function":
+                        for n in c.get_symbols():
+                            assert not (n.get_name() in ("os", "sys", "ctypes", "json", "time") and n.is_local() and n.is_imported()), "%s: %s imports %s inside a function (shadows the module)" % (f.name, c.get_name(), n.get_name())
+                    _walk(c)
+            _walk(symtable.symtable(src, str(f), "exec"))
+        ok.append("pure ASCII sources; all modules compile; no module shadowing inside functions")
         print("faxdesk selftest: ALL PASS")
         for o in ok:
             print("  ok  " + o)
