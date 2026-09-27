@@ -1,6 +1,6 @@
 # Free Fax Desk (FaxDesk)
 
-A small free program that turns a **Phone.com fax line** into a fax desk on your PC.
+Faxing. Magical - Delightful - Easy A small free program that puts your **Phone.com fax line** on your PC.
 Drop a PDF, it goes out with a cover sheet. Incoming faxes land on the page, get assigned to a person and marked handled.
 Everything stays on your computer. No cloud account, no telemetry.
 
