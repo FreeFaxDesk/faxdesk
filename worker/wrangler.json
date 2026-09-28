@@ -1,0 +1,17 @@
+{
+  "name": "freefaxdesk-forms",
+  "main": "worker.js",
+  "compatibility_date": "2026-09-01",
+  "kv_namespaces": [{ "binding": "FFD", "id": "196743132b234585bc5955a3307987e1" }],
+  "send_email": [{ "name": "NOTIFY", "destination_address": "help@freefaxdesk.com" }],
+  "vars": {
+    "NOTIFY_TO": "help@freefaxdesk.com",
+    "NOTIFY_FROM": "forms@freefaxdesk.com",
+    "API_BASE": "https://api.freefaxdesk.com",
+    "FOUNDING_CAP": "25",
+    "ML_GROUP_UPDATES": "",
+    "ML_GROUP_PROVIDERS": "",
+    "ML_GROUP_FOUNDING": ""
+  },
+  "routes": [{ "pattern": "api.freefaxdesk.com", "custom_domain": true }]
+}

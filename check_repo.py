@@ -8,7 +8,7 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 BAD_WORDS = [r"frye", r"lancaster", r"fryec", r"Z:\\", r"cowork", r"172\.16\.", r"Harry", r"chiro", r"bearer [a-z0-9]{20,}",
              r"\+1661\d{7}", r"pythoncore-3\.14", r"Administration\\"]
 BAD_FILES = [r"^private/", r"config\.json$", r"logo\.jpg$", r"\.jsonl$", r"^dist/", r"^build/", r"\.spec$", r"__pycache__", r"\.pyc$"]
-ALLOW_EXT = {".py", ".html", ".md", ".txt", ".bat", ".command", ".yml", ".png", ".ico", ".svg", ".jpg", ".css", ".js", ".json", ".xml", ""}
+ALLOW_EXT = {".mjs", ".py", ".html", ".md", ".txt", ".bat", ".command", ".yml", ".png", ".ico", ".svg", ".jpg", ".css", ".js", ".json", ".xml", ""}
 
 
 def main():
@@ -35,8 +35,8 @@ def main():
             if any(ord(ch) > 127 for ch in text) and ext in (".py", ".bat", ".command", ".txt"):
                 bad.append((rel, "non-ASCII characters"))
             # Harry 2026-09-27: the clinic is named publicly in the press release, so the public-facing site text
-            # (docs/index.html only) may say "Frye Chiropractic" / "Lancaster, California". Never in src/.
-            public_ok = rel.replace("\\", "/") == "docs/index.html"
+            # (docs/index.html and docs/reviews.html) may say "Frye Chiropractic" / "Lancaster, California". Never in src/.
+            public_ok = rel.replace("\\", "/") in ("docs/index.html", "docs/reviews.html")
             for w in BAD_WORDS:
                 if public_ok and w in (r"frye", r"lancaster", r"chiro", r"Harry"):
                     continue
