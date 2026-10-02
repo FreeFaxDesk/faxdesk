@@ -4,6 +4,7 @@ Free = 127.0.0.1 only. The LAN switch (0.0.0.0) is the paid 'whole office' optio
 import base64
 import datetime as _dt
 import json
+import os
 import re
 import sys
 import urllib.parse
@@ -14,7 +15,7 @@ from . import license, pdfmini, phonecom
 from .store import Store, clean, now
 from .worker import Worker
 
-VERSION = "0.3.4"
+VERSION = "0.4.0"
 HERE = Path(getattr(sys, "_MEIPASS", "")) / "faxdesk" if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
 MAX_PDF = 20 * 1024 * 1024
 OUTCOMES = ["Printed", "Filed", "Given to someone", "Replied", "Junk"]
@@ -196,7 +197,7 @@ class App:
             return 413, {"ok": False, "error": "That PDF is over 20 MB."}
         c = st.config()
         pages = page_count(pdf)
-        fid = "out-" + _dt.datetime.now().strftime("%Y%m%d-%H%M%S") + "-" + base64.b32encode(pdf[-5:]).decode("ascii").lower()[:6]
+        fid = "out-" + _dt.datetime.now().strftime("%Y%m%d-%H%M%S") + "-" + base64.b32encode(pdf[-5:] + os.urandom(3)).decode("ascii").lower()[:10]   # v1.1: random tail - two sends of the same PDF in one second no longer share a name
         cover = None
         if body.get("cover", True):
             logo = None

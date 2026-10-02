@@ -108,6 +108,30 @@ class Client:
             return {"ok": False, "error": err, "status": code}
         return {"ok": True, "fax_id": str(j.get("id") or ""), "pages": j.get("pages"), "status": code, "error": ""}
 
+    def status(self, fax_id):
+        """v1.1: one fax by id. Returns {"ok", "status", "reason"} - status/reason are Phone.com's words, lower-cased, or
+        ok=False with a plain error when Phone.com could not be asked. Used by the delivery watch after a fax is accepted."""
+        fid = re.sub(r"[^A-Za-z0-9_-]", "", str(fax_id or ""))
+        if not fid:
+            return {"ok": False, "error": "no fax id"}
+        code, j, err = self._call("GET", "/v4/accounts/%s/fax/%s" % (self.voip_id, fid), timeout=45)
+        if err:
+            return {"ok": False, "error": err}
+        st, why = "", ""
+        for k in ("status", "state", "delivery_status", "result"):
+            v = j.get(k)
+            if isinstance(v, dict):
+                v = v.get("status") or v.get("state") or v.get("name")
+            if v:
+                st = str(v); break
+        for k in ("error", "error_message", "reason", "failure_reason", "status_reason", "message", "detail"):
+            v = j.get(k)
+            if isinstance(v, dict):
+                v = v.get("message") or v.get("reason") or v.get("text")
+            if v:
+                why = str(v); break
+        return {"ok": True, "status": st.strip().lower(), "reason": why.strip()}
+
     def received(self, limit=200, max_pages=25):
         """All received faxes the account knows about (Phone.com lists in/out together; ids are not time-ordered)."""
         out, offset = [], 0

@@ -45,6 +45,12 @@ def run():
                     return self._out(200, {"items": [{"id": 501, "direction": "in", "from": {"number": "+18185550123", "name": "Dr Test"}, "to": "+15555550100", "pages": 1, "created_at": "2026-09-26T10:00:00", "download_url": "http://127.0.0.1:%d/dl/501" % self.server.server_address[1]},
                                                      {"id": 500, "direction": "out", "from": "+15555550100", "to": "+18185550123", "pages": 1, "created_at": "2026-09-25T10:00:00"}], "total": 2})
                 return self._out(200, {"items": [], "total": 2})
+            if "/fax/" in self.path and self.path.rsplit("/", 1)[1].isdigit():     # v1.1 delivery watch: one fax by id
+                fid = int(self.path.rsplit("/", 1)[1])
+                calls["status"] = calls.get("status", 0) + 1
+                if fid == calls.get("undeliver_id"):
+                    return self._out(200, {"id": fid, "status": "failed", "error": {"message": "No answer from the receiving fax"}})
+                return self._out(200, {"id": fid, "status": "delivered"})
             if self.path.startswith("/dl/"):
                 return self._out(200, pdf_in, "application/pdf")
             return self._out(404, {})
@@ -115,6 +121,25 @@ def run():
         app.worker.transmit_once()
         assert st.read("outbox/%s.json" % fid, {})["status"] == "sent"
         ok.append("send: 3 tries then failed with the reason; resend works")
+
+        # v1.1: Phone.com accepted both; the far machine refused one later -> failed with the reason, Resend; the other says delivered
+        code, r = _j(base, "POST", "/api/send", {"to": "8185550125", "pdf": base64.b64encode(doc).decode(), "cover": False}); fid2 = r["id"]
+        code, r = _j(base, "POST", "/api/send", {"to": "8185550126", "pdf": base64.b64encode(doc).decode(), "cover": False}); fid3 = r["id"]
+        app.worker.transmit_once()
+        m2 = st.read("outbox/%s.json" % fid2, {}); m3 = st.read("outbox/%s.json" % fid3, {})
+        assert m2["status"] == "sent" and m2["fax_id"] and m3["status"] == "sent" and m3["fax_id"], (m2, m3)
+        calls["undeliver_id"] = int(m2["fax_id"])
+        n = app.worker.watch_once()
+        assert n >= 2, n
+        m2 = st.read("outbox/%s.json" % fid2, {}); m3 = st.read("outbox/%s.json" % fid3, {})
+        assert m2["status"] == "failed" and m2["error"].startswith("not delivered: No answer") and m2["delivery"]["final"] and m2["delivery"]["ok"] is False, m2
+        assert m3["status"] == "sent" and m3["delivery"]["final"] and m3["delivery"]["ok"] is True, m3
+        code, L = _j(base, "GET", "/api/log")
+        assert any(x.get("undelivered") and x["id"] == fid2 for x in L["rows"]), L["rows"][:3]
+        assert app.worker.watch_once() == 0                                          # final ones are not asked again
+        code, r = _j(base, "POST", "/api/resend", {"id": fid2})
+        assert r["ok"] and st.read("outbox/%s.json" % fid2, {})["status"] == "queued"
+        ok.append("delivery watch: accepted-then-undelivered -> failed + plain reason + resend; delivered -> marked; asked once")
 
         n = app.worker.pull_once()
         assert n == 1 and app.worker.pull_once() == 0                                 # once

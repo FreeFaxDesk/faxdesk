@@ -10,6 +10,11 @@ from . import phonecom
 from .store import Store, clean, now
 
 MAX_TRIES = 3
+WATCH_MINUTES = 90                      # how long after Phone.com accepts a fax we keep asking whether it was delivered
+WATCH_EVERY = 120                       # seconds between checks
+FINAL_OK = ("sent", "delivered", "success", "succeeded", "completed", "complete", "ok")
+FINAL_BAD = ("failed", "failure", "error", "busy", "no answer", "no_answer", "noanswer", "unreachable", "rejected",
+             "cancelled", "canceled", "undeliver", "not delivered", "timeout", "timed out", "invalid")
 
 
 class Worker(threading.Thread):
@@ -70,6 +75,62 @@ class Worker(threading.Thread):
         self.last["transmit"] = now()
         return n
 
+    # ------------------------------------------------------------ delivery watch (v1.1)
+    def watch_once(self):
+        """Phone.com says "accepted" the moment it takes a fax; the far machine can still refuse it minutes later. For every
+        fax sent in the last WATCH_MINUTES we ask Phone.com how it went. Not delivered -> the row turns failed with the reason
+        in plain words and Resend appears; delivered -> the row says so. Returns how many were checked."""
+        st = self.store
+        client = self.client_factory()
+        if client is None:
+            return 0
+        n = 0
+        cutoff = (_dt.datetime.now() - _dt.timedelta(minutes=WATCH_MINUTES * 2)).isoformat(timespec="seconds")
+        for meta_path in sorted((st.root / "outbox").glob("*.json"))[-300:]:
+            try:
+                m = json.loads(meta_path.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            if m.get("status") != "sent" or not m.get("fax_id") or (m.get("delivery") or {}).get("final"):
+                continue
+            sent_at = str(m.get("sent_at") or "")
+            if not sent_at or sent_at < cutoff:
+                continue
+            d = dict(m.get("delivery") or {})
+            try:
+                age_min = (_dt.datetime.now() - _dt.datetime.fromisoformat(sent_at)).total_seconds() / 60.0
+            except ValueError:
+                continue
+            try:
+                r = client.status(m["fax_id"])
+            except Exception as e:
+                r = {"ok": False, "error": "status failed (%s)" % type(e).__name__}
+            n += 1
+            d.update(checks=int(d.get("checks") or 0) + 1, checked_at=now(), final=False)
+            if not r.get("ok"):
+                d["note"] = clean(r.get("error"), 120)
+            else:
+                low = r.get("status") or ""
+                why = clean(r.get("reason"), 160)
+                d.update(status=low, reason=why, note="")
+                if any(x in low for x in FINAL_BAD) or (why and not any(x in low for x in FINAL_OK)):
+                    d.update(final=True, ok=False)
+                elif any(x in low for x in FINAL_OK):
+                    d.update(final=True, ok=True)
+            if not d["final"] and age_min > WATCH_MINUTES:
+                d.update(final=True, ok=None, note="no final word from Phone.com in %d minutes" % WATCH_MINUTES)
+            m["delivery"] = d
+            if d["final"] and d.get("ok") is False:
+                m["status"] = "failed"; m["failed_at"] = now()
+                m["error"] = "not delivered: " + (d.get("reason") or d.get("status") or "the other fax machine did not take it")
+                st.append("log.jsonl", {"ts": now(), "id": m["id"], "to": m["to"], "to_name": m.get("to_name", ""), "from": m.get("by", ""),
+                                        "subject": m.get("subject", ""), "pages": m.get("pages"), "status": "failed", "error": m["error"],
+                                        "fax_id": m.get("fax_id", ""), "tries": m.get("tries", 0), "undelivered": True})
+                st.audit("fax_undelivered", m.get("by", ""), m["error"], m["id"])
+            st.write("outbox/" + meta_path.name, m)
+        self.last["watch"] = now()
+        return n
+
     # ------------------------------------------------------------ inbox
     def pull_once(self):
         st = self.store
@@ -122,13 +183,15 @@ class Worker(threading.Thread):
             self.last["backup"] = day
 
     def run(self):
-        next_tx, next_pull = 0, 0
+        next_tx, next_pull, next_watch = 0, 0, 0
         while not self._stop.is_set():
             t = time.time()
             try:
                 if t >= next_tx or self._wake.is_set():
                     self._wake.clear()
                     self.transmit_once(); next_tx = time.time() + 60
+                if t >= next_watch:
+                    self.watch_once(); next_watch = time.time() + WATCH_EVERY
                 if t >= next_pull:
                     c = self.store.config()
                     if c.get("setup_done"):

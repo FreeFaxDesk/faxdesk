@@ -4,6 +4,7 @@
 
 - Home: https://freefaxdesk.com/
 - Whole office plan: https://freefaxdesk.com/office
+- What's new (release notes, newest first; RSS at /whats-new.xml): https://freefaxdesk.com/whats-new
 - Fax services with an API (comparison): https://freefaxdesk.com/providers
 - Code signing policy: https://freefaxdesk.com/signing
 - Source code and downloads (MIT): https://github.com/FreeFaxDesk/faxdesk
@@ -11,6 +12,20 @@
 
 ## Facts
 - Windows 10/11, single EXE, no install; Python standard library only.
+- v1.1 (2026-10-01): delivery watch - after a fax is accepted, FaxDesk checks with the fax service for 90 minutes; undelivered faxes turn failed with a plain-language reason and a Resend button, delivered ones are marked.
 - Works with a Phone.com account's fax number via the Phone.com API; other providers planned (SRFax next).
 - Nothing phones home: no analytics, no update checks, no cloud account.
 - Not affiliated with Phone.com.
+
+## What's new - one page per feature
+- Know when a fax actually arrived (delivery watch, v1.1): https://freefaxdesk.com/new/delivery-watch
+- Fax never went away. It went digital (launch story): https://freefaxdesk.com/new/fax-never-went-away
+- Done, with a reason (v1.0.2): https://freefaxdesk.com/new/done-with-a-reason
+- Get your Phone.com key in five minutes: https://freefaxdesk.com/new/get-your-phone-com-key
+- Which fax services work: https://freefaxdesk.com/new/fax-services
+- Free Fax Desk 1.0 - one file, no installer, nothing phones home: https://freefaxdesk.com/new/free-fax-desk-1-0
+- Faxes arrive with a name on them: https://freefaxdesk.com/new/faxes-arrive-with-a-name
+- An owner for every fax: https://freefaxdesk.com/new/an-owner-for-every-fax
+- Sending is drag, click, done: https://freefaxdesk.com/new/sending-is-drag-click-done
+- A cover sheet with your logo: https://freefaxdesk.com/new/a-cover-sheet-with-your-logo
+- You decide how long faxes stay: https://freefaxdesk.com/new/you-decide-how-long-faxes-stay
