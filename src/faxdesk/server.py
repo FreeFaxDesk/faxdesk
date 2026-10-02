@@ -15,7 +15,7 @@ from . import license, pdfmini, phonecom
 from .store import Store, clean, now
 from .worker import Worker
 
-VERSION = "0.4.0"
+VERSION = "0.4.1"
 HERE = Path(getattr(sys, "_MEIPASS", "")) / "faxdesk" if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
 MAX_PDF = 20 * 1024 * 1024
 OUTCOMES = ["Printed", "Filed", "Given to someone", "Replied", "Junk"]
@@ -226,7 +226,7 @@ class App:
         m = self.store.read("outbox/%s.json" % fid, None)
         if not m:
             return 404, {"ok": False, "error": "Not found."}
-        m.update(status="queued", tries=0, error="", not_before="")
+        m.update(status="queued", tries=0, error="", not_before="", delivery={})   # v1.1: a resend is watched afresh
         self.store.write("outbox/%s.json" % fid, m)
         self.store.audit("fax_resend", me, "", fid)
         self.worker.poke()

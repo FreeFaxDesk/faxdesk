@@ -139,6 +139,8 @@ def run():
         assert app.worker.watch_once() == 0                                          # final ones are not asked again
         code, r = _j(base, "POST", "/api/resend", {"id": fid2})
         assert r["ok"] and st.read("outbox/%s.json" % fid2, {})["status"] == "queued"
+        app.worker.transmit_once(); calls["undeliver_id"] = 0
+        assert app.worker.watch_once() >= 1 and st.read("outbox/%s.json" % fid2, {})["delivery"]["ok"] is True   # the resend is watched afresh
         ok.append("delivery watch: accepted-then-undelivered -> failed + plain reason + resend; delivered -> marked; asked once")
 
         n = app.worker.pull_once()
