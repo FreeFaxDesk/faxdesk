@@ -14,8 +14,10 @@ from pathlib import Path
 from . import license, pdfmini, phonecom
 from .store import Store, clean, now
 from .worker import Worker
+from .road import Road
+from . import ocr as _ocr
 
-VERSION = "0.4.1"
+VERSION = "0.6.0"
 HERE = Path(getattr(sys, "_MEIPASS", "")) / "faxdesk" if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
 MAX_PDF = 20 * 1024 * 1024
 OUTCOMES = ["Printed", "Filed", "Given to someone", "Replied", "Junk"]
@@ -71,6 +73,10 @@ class App:
     def __init__(self, store):
         self.store = store
         self.worker = Worker(store, self.client)
+        self.road = Road(store)
+        self.worker.road = self.road
+        self.ocr = _ocr.Ocr(store)
+        self.worker.ocr = self.ocr
 
     def client(self):
         c = self.store.config()
@@ -90,7 +96,7 @@ class App:
                 "pull_minutes": c.get("pull_minutes"), "keep_in_days": c.get("keep_in_days"), "keep_out_days": c.get("keep_out_days"),
                 "voip_id": c.get("voip_id", ""), "extension": c.get("extension", ""), "has_token": bool(self.store.token()),
                 "licensed": license.valid(c.get("license") or ""), "license_hint": (c.get("license") or "")[-4:],
-                "book": self.store.book(), "outcomes": OUTCOMES,
+                "book": self.store.book(), "outcomes": OUTCOMES, "ocr": dict(_ocr.status(c), **self.ocr.stat),
                 "counts": {"new": sum(1 for r in inbox if r["is_new"]), "mine": sum(1 for r in inbox if r["assigned_to"] == me and not r["handled"]),
                            "to_handle": sum(1 for r in inbox if not r["handled"] and not r["spam"]),
                            "queued": sum(1 for r in self.outbox_rows() if r["status"] in ("queued", "sending", "retry"))}}
@@ -410,6 +416,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, pdf, "application/pdf", {"Content-Disposition": "inline; filename=cover_preview.pdf"})
             if path == "/api/inbox":
                 return self._send(200, {"ok": True, "me": me, "rows": app.inbox_rows(me)})
+            if path == "/api/inbox/search":
+                q = (qs.get("q") or [""])[0]
+                app.store.audit("inbox_search", me, "ok", "")                       # never the words
+                return self._send(200, dict({"ok": True, "hits": app.ocr.search(q)}, **dict(_ocr.status(app.store.config()), **app.ocr.stat)))
+            if path == "/api/road/status":
+                st = app.road.status(); st["devices"] = [dict((k, v) for k, v in d.items() if k != "pub") for d in st.get("devices") or []]; return self._send(200, st)
             if path == "/api/outbox":
                 return self._send(200, {"ok": True, "me": me, "rows": app.outbox_rows()})
             if path == "/api/log":
@@ -476,6 +488,25 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, {"ok": True, "has_logo": True})
             if path == "/api/send":
                 code, out = app.queue_send(body, me); return self._send(code, out)
+            if path == "/api/road/enable":
+                code, out = app.road.enable(me); return self._send(code, out)
+            if path == "/api/road/disable":
+                code, out = app.road.disable(me); return self._send(code, out)
+            if path == "/api/road/invite":
+                code, out = app.road.invite(me, body.get("label")); return self._send(code, out)
+            if path == "/api/road/device":
+                code, out = app.road.device(me, body.get("device_id"), str(body.get("status") or ""), str(body.get("fp") or "")); return self._send(code, out)
+            if path == "/api/road/send":                       # an inbox fax or a sent document -> one phone
+                fid = re.sub(r"[^A-Za-z0-9_.-]", "", str(body.get("id") or ""))
+                box = "inbox" if fid.startswith(("in-", "rd-")) else "outbox"
+                m = app.store.read("%s/%s.json" % (box, fid), None)
+                pdfp = app.store.root / box / (fid + ".pdf")
+                if not m or not pdfp.exists():
+                    return self._send(404, {"ok": False, "error": "Not found."})
+                meta = {"name": (m.get("subject") or m.get("filename") or fid) + ".pdf" if not str(m.get("subject") or "").endswith(".pdf") else m.get("subject"),
+                        "from": (m.get("from_name") or app.pretty(m.get("from")) or m.get("to_name") or ""), "kind": "fax" if box == "inbox" and m.get("source") != "road" else "doc",
+                        "pages": m.get("pages"), "note": body.get("note") or ""}
+                code, out = app.road.send(me, str(body.get("device_id") or ""), pdfp.read_bytes(), meta); return self._send(code, out)
             if path == "/api/resend":
                 fid = str(body.get("id") or "")
                 if not _ID.match(fid):

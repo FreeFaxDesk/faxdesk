@@ -8,8 +8,11 @@
 //   GET  /admin/reject ?kind=..&id=..&sig=..
 //   GET  /admin/unpublish?id=..&sig=..   (takes a published review off the site; kept on file)
 //   GET  /admin/pending?sig=HMAC(ADMIN_SECRET,"pending")   (owner's inbox page: everything awaiting a decision + sign-ups)
+//   /road/*          Road relay - see relay.js (office PC <-> phones, encrypted envelopes, push)
 // Bindings: KV "FFD" ; EMAIL "NOTIFY" (Email Workers, destination help@freefaxdesk.com) ; secrets ADMIN_SECRET, MAILERLITE_KEY (optional)
 // Vars: NOTIFY_TO, NOTIFY_FROM, FOUNDING_CAP, ML_GROUP_UPDATES, ML_GROUP_PROVIDERS, ML_GROUP_FOUNDING
+
+import { road } from "./relay.js";   // Road relay: encrypted envelopes office <-> phones (see relay.js)
 
 const ORIGINS = ["https://freefaxdesk.com", "https://www.freefaxdesk.com", "http://127.0.0.1:8750"];
 const clean = (s, n) => String(s == null ? "" : s).replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, n);
@@ -19,7 +22,7 @@ const json = (o, code = 200, extra = {}) => new Response(JSON.stringify(o), { st
 function cors(req) {
   const o = req.headers.get("Origin") || "";
   const ok = ORIGINS.includes(o) ? o : ORIGINS[0];
-  return { "Access-Control-Allow-Origin": ok, "Access-Control-Allow-Methods": "GET,POST,OPTIONS", "Access-Control-Allow-Headers": "content-type", "Vary": "Origin" };
+  return { "Access-Control-Allow-Origin": ok, "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS", "Access-Control-Allow-Headers": "content-type, authorization", "Vary": "Origin" };
 }
 async function hmac(secret, msg) {
   const k = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
@@ -175,6 +178,7 @@ export default {
   async fetch(req, env) {
     const url = new URL(req.url); const p = url.pathname.replace(/\/+$/, "") || "/";
     if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors(req) });
+    if (p === "/road" || p.startsWith("/road/")) { try { return await road(req, env, url, p, cors(req)); } catch (e) { console.log("road", String(e)); return json({ ok: false, error: "Relay error." }, 500, cors(req)); } }
     try {
       if (req.method === "GET") {
         if (p === "/reviews") return getReviews(env, req);

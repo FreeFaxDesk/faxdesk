@@ -43,3 +43,37 @@ Workers (send_email binding) to the already-verified help@ destination. List: Ma
 ## Files
 - worker.js, wrangler.json (this folder is in the public repo; secrets are never in files).
 - Site pages: docs/review.html, docs/reviews.html, docs/founding.html, docs/forms.js.
+
+## Road relay (added 2026-10-03, FaxDesk 1.2.0) - office PC <-> phones, sealed end to end
+The same Worker now also answers `/road/*` (code in `relay.js`, mounted from `worker.js`). It carries ENCRYPTED envelopes
+between an office PC and the phones it invited and pokes phones with a content-free Web Push. It never holds a key and
+never sees a document; the KV rows under `road:*` are public keys, tokens (sha256 only), device status and sealed blobs.
+
+### Deploy (one time, ~10 min)
+1. The dashboard editor takes ONE file, so build it: `cd worker && python bundle.py` -> `worker.bundle.js`. Paste THAT into
+   https://dash.cloudflare.com/c0873d6e91d8f367f7d827bb74603a13/workers/services/edit/freefaxdesk-forms/production and Deploy.
+   (With wrangler instead: `wrangler deploy` from this folder picks up the import by itself; no bundle needed.)
+2. Push keys (optional, for notifications; everything else works without them). In this folder:
+   `node -e "crypto.subtle.generateKey({name:'ECDSA',namedCurve:'P-256'},true,['sign','verify']).then(async k=>{const pub=await crypto.subtle.exportKey('jwk',k.publicKey),prv=await crypto.subtle.exportKey('jwk',k.privateKey);const raw=Buffer.concat([Buffer.from([4]),Buffer.from(pub.x,'base64url'),Buffer.from(pub.y,'base64url')]).toString('base64url');console.log('VAPID_PUBLIC='+raw);console.log('VAPID_PRIVATE='+JSON.stringify(prv))})"`
+   Add the two lines as secrets (Worker > Settings > Variables and Secrets): `VAPID_PUBLIC` (the base64url string),
+   `VAPID_PRIVATE` (the JWK JSON), and a plain var `VAPID_SUBJECT` = `mailto:help@freefaxdesk.com`. Generate once; changing
+   the keys later silently breaks every phone's subscription until it re-subscribes.
+3. Check: `curl https://api.freefaxdesk.com/road/vapid` -> `{"ok":true,"key":"..."}` (key empty until step 2).
+4. The phone page is static: `docs/road.html`, `docs/road-sw.js`, `docs/road.webmanifest` ship with the site on GitHub Pages.
+
+### Tests
+- `node test_road.mjs` - relay against an in-memory KV, Node phone <-> Python office (needs python3 + cryptography).
+- `node dev_relay.mjs &` then `node test_phone.mjs` - the real road.html in headless Chromium against the real relay code
+  and the real `faxdesk.road` office (needs Playwright; writes screenshots to ../out/shots - scratch only).
+- `node test.mjs` - the forms worker, unchanged.
+
+### Allowing a phone (what the office sees)
+Allow asks for the first 4 characters of the code shown on the phone's "This phone" screen (and on its waiting banner). The
+PC compares it with the fingerprint of the key the relay handed over; a mismatch is refused and audited. That is the one
+step that stops a relay operator swapping keys at enrolment. Every envelope is also bound to office id + device id (AES-GCM
+additional data), so an envelope relabelled for another phone does not open.
+
+### Limits in code
+50 devices per office, envelope 6 MB, 30-day TTL on envelopes, invite codes 24 h and one use, per-minute rate limits (register 5/IP,
+enrol 10/IP, invite 20/office, envelope POST 60, other 240), bearer tokens 32 random
+bytes stored as sha256. Blocking a device on the PC refuses it at the relay at once; "remove" forgets it.

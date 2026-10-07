@@ -12,6 +12,8 @@ from .store import Store, clean, now
 MAX_TRIES = 3
 WATCH_MINUTES = 90                      # how long after Phone.com accepts a fax we keep asking whether it was delivered
 WATCH_EVERY = 120                       # seconds between checks
+ROAD_EVERY = 45                         # seconds between Road pulls (phones -> office)
+OCR_EVERY = 45                          # seconds between OCR passes over new incoming faxes (ocr.py)
 FINAL_OK = ("sent", "delivered", "success", "succeeded", "completed", "complete", "ok")
 FINAL_BAD = ("failed", "failure", "error", "busy", "no answer", "no_answer", "noanswer", "unreachable", "rejected",
              "cancelled", "canceled", "undeliver", "not delivered", "timeout", "timed out", "invalid")
@@ -22,6 +24,8 @@ class Worker(threading.Thread):
         super().__init__(daemon=True)
         self.store, self.client_factory, self.tick = store, client_factory, tick
         self.last = {"transmit": "", "pull": "", "pull_ok": None, "pull_error": "", "backup": ""}
+        self.road = None                                   # set by the App when Road is wired (road.py)
+        self.ocr = None                                    # set by the App (ocr.py)
         self._stop = threading.Event()
         self._wake = threading.Event()
 
@@ -183,7 +187,7 @@ class Worker(threading.Thread):
             self.last["backup"] = day
 
     def run(self):
-        next_tx, next_pull, next_watch = 0, 0, 0
+        next_tx, next_pull, next_watch, next_road, next_ocr = 0, 0, 0, 0, time.time() + 20
         while not self._stop.is_set():
             t = time.time()
             try:
@@ -192,6 +196,19 @@ class Worker(threading.Thread):
                     self.transmit_once(); next_tx = time.time() + 60
                 if t >= next_watch:
                     self.watch_once(); next_watch = time.time() + WATCH_EVERY
+                if self.road is not None and t >= next_road:
+                    try:
+                        if self.road.state().get("office_id"):
+                            self.road.pull_once()
+                    except Exception:
+                        pass
+                    next_road = time.time() + ROAD_EVERY
+                if self.ocr is not None and t >= next_ocr:
+                    try:
+                        self.ocr.once()
+                    except Exception:
+                        pass
+                    next_ocr = time.time() + OCR_EVERY
                 if t >= next_pull:
                     c = self.store.config()
                     if c.get("setup_done"):

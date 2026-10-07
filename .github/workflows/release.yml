@@ -11,7 +11,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
-      - run: python -m pip install pyinstaller
+      - run: python -m pip install pyinstaller cryptography==46.0.7 pymupdf==1.28.2
       - run: cd src && python -m faxdesk --selftest
       - run: cd src && python -m PyInstaller --noconfirm --onefile --noconsole --name FaxDesk --icon faxdesk\www\faxdesk.ico --add-data "faxdesk\www;faxdesk\www" run_faxdesk.py
       - run: Compress-Archive -Path src\faxdesk, src\FaxDesk.command, src\README.txt, src\run_faxdesk.py -DestinationPath FreeFaxDesk-source.zip

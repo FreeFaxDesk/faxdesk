@@ -5,10 +5,11 @@ import re
 import sys
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
-BAD_WORDS = [r"frye", r"lancaster", r"fryec", r"Z:\\", r"cowork", r"172\.16\.", r"Harry", r"chiro", r"bearer [a-z0-9]{20,}",
+BAD_WORDS = [r"frye", r"lancaster", r"fryec", r"\bDr\. B\b", r"Z:\\", r"cowork", r"172\.16\.", r"Harry", r"chiro", r"bearer [a-z0-9]{20,}",
              r"\+1661\d{7}", r"pythoncore-3\.14", r"Administration\\"]
-BAD_FILES = [r"^private/", r"config\.json$", r"logo\.jpg$", r"\.jsonl$", r"^dist/", r"^build/", r"\.spec$", r"__pycache__", r"\.pyc$"]
-ALLOW_EXT = {".mjs", ".py", ".html", ".md", ".txt", ".bat", ".command", ".yml", ".png", ".ico", ".svg", ".jpg", ".css", ".js", ".json", ".xml", ".mp4", ""}
+BAD_FILES = [r"^private/", r"config\.json$", r"logo\.jpg$", r"\.jsonl$", r"^dist/", r"^build/", r"\.spec$", r"__pycache__", r"\.pyc$",
+             r"^backups/", r"^(contacts|inbox_state|routes|blocked|people|book|rules|licence|license_state)\.json$", r"^(inbox|outbox|img)/"]   # 2026-10-03: state files that once sat beside the code
+ALLOW_EXT = {".mjs", ".py", ".html", ".md", ".txt", ".bat", ".command", ".yml", ".png", ".ico", ".svg", ".jpg", ".css", ".js", ".json", ".xml", ".mp4", ".webmanifest", ""}
 
 
 def main():

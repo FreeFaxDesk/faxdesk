@@ -34,6 +34,8 @@ def run():
             self.send_response(code); self.send_header("Content-Type", ctype); self.send_header("Content-Length", str(len(data))); self.end_headers(); self.wfile.write(data)
 
         def do_GET(self):
+            if self.path.startswith("/road/"):
+                return self._road({})
             if self.headers.get("Authorization") != "Bearer TESTTOKEN":
                 return self._out(401, {"error": "bad token"})
             if self.path.startswith("/v4/accounts?"):
@@ -55,8 +57,49 @@ def run():
                 return self._out(200, pdf_in, "application/pdf")
             return self._out(404, {})
 
+        def _road(self, body):                                   # a tiny stand-in for relay.js (same contract, no crypto of its own)
+            R = calls.setdefault("relay", {"offices": {}, "devices": {}, "inv": {}, "env": {}, "tok": {}})
+            p = self.path.split("?")[0]; tok = (self.headers.get("Authorization") or "")[7:]; me = R["tok"].get(tok)
+            def out(code, o): return self._out(code, o)
+            if p == "/road/office/register":
+                oid = "off_%d" % (len(R["offices"]) + 1); t = "OT" + oid; R["offices"][oid] = {"pub": body["pub"], "name": body["name"]}; R["tok"][t] = ("office", oid); return out(200, {"ok": True, "office_id": oid, "office_token": t})
+            if p == "/road/device/enroll":
+                inv = R["inv"].pop(body.get("code"), None)
+                if not inv: return out(400, {"ok": False, "error": "bad code"})
+                did = "dev_%d" % (len(R["devices"]) + 1); t = "DT" + did; R["devices"][did] = {"device_id": did, "office_id": inv, "name": body.get("name"), "pub": body["pub"], "status": "pending"}; R["tok"][t] = ("device", did)
+                return out(200, {"ok": True, "device_id": did, "device_token": t, "office_id": inv, "office_pub": R["offices"][inv]["pub"], "status": "pending"})
+            if not me: return out(401, {"ok": False, "error": "no"})
+            kind, mid = me; oid = mid if kind == "office" else R["devices"][mid]["office_id"]
+            if p == "/road/office" and self.command == "GET":
+                devs = [d for d in R["devices"].values() if d["office_id"] == oid]; return out(200, {"ok": True, "office_id": oid, "name": R["offices"][oid]["name"], "devices": devs, "pending": sum(1 for d in devs if d["status"] == "pending")})
+            if p == "/road/office/people":
+                R["offices"][oid]["people"] = list(body.get("people") or []); return out(200, {"ok": True, "people": R["offices"][oid]["people"]})
+            if p == "/road/office/invite":
+                code = "CODE%04d" % len(R["inv"]); R["inv"][code] = oid; return out(200, {"ok": True, "code": code, "expires": "soon"})
+            if p == "/road/office/device":
+                d = R["devices"].get(body.get("device_id"))
+                if not d or d["office_id"] != oid: return out(404, {"ok": False, "error": "no"})
+                d["status"] = "allowed" if body.get("status") == "allow" else "blocked"; return out(200, {"ok": True, "device": d})
+            if p == "/road/env" and self.command == "POST":
+                if kind == "device" and R["devices"][mid]["status"] != "allowed": return out(403, {"ok": False, "error": "pending"})
+                eid = "env_%d" % (len(R["env"]) + 1); to = "office" if kind == "device" else body["to"]
+                R["env"][eid] = {"head": {"id": eid, "office_id": oid, "from": "office" if kind == "office" else mid, "from_name": "office" if kind == "office" else R["devices"][mid]["name"], "to": to, "kind": body.get("kind"), "size": body.get("size"), "at": "2026-10-03T10:00:00"}, "body": body["body"]}
+                return out(200, {"ok": True, "id": eid})
+            if p == "/road/env" and self.command == "GET":
+                to = "office" if kind == "office" else mid; return out(200, {"ok": True, "rows": [e["head"] for e in R["env"].values() if e["head"]["office_id"] == oid and e["head"]["to"] == to]})
+            if p.startswith("/road/env/"):
+                eid = p.rsplit("/", 1)[1]; e = R["env"].get(eid)
+                if self.command == "DELETE": R["env"].pop(eid, None); return out(200, {"ok": True})
+                return out(200, {"ok": True, "head": e["head"], "body": e["body"]}) if e else out(404, {"ok": False})
+            return out(404, {"ok": False, "error": "nf"})
+
+        def do_DELETE(self):
+            return self._road({})
+
         def do_POST(self):
             body = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)).decode())
+            if self.path.startswith("/road/"):
+                return self._road(body)
             calls["send"] += 1; calls["last"] = body
             if calls["fail_next"]:
                 calls["fail_next"] -= 1
@@ -143,10 +186,70 @@ def run():
         assert app.worker.watch_once() >= 1 and st.read("outbox/%s.json" % fid2, {})["delivery"]["ok"] is True   # the resend is watched afresh
         ok.append("delivery watch: accepted-then-undelivered -> failed + plain reason + resend; delivered -> marked; asked once")
 
+        # ---- Road: office key, invite, phone enrols (roadcrypto plays the phone), allow, phone -> office pages land as a PDF, office -> phone
+        from . import roadcrypto as rc
+        from .road import jpegs_to_pdf
+        app.road.relay = api + "/road"
+        code, r = _j(base, "POST", "/api/road/enable", {})
+        assert r["ok"] and r["enabled"] and r["fingerprint"], r
+        assert "priv_sealed" in st.read("road.json", {}) and "office_id" in st.read("road.json", {})
+        code, r = _j(base, "POST", "/api/road/invite", {"label": "Dr B iPhone"})
+        assert r["ok"] and r["code"].startswith("CODE") and r["link"].endswith("#" + r["code"]), r
+        ppriv, ppub = rc.new_keypair()                                              # the phone
+        import urllib.request as _ur
+        def relay(method, path, obj=None, tok=None):
+            rq = _ur.Request(api + "/road" + path, data=json.dumps(obj).encode() if obj is not None else None, method=method, headers=dict({"Content-Type": "application/json"}, **({"Authorization": "Bearer " + tok} if tok else {})))
+            with _ur.urlopen(rq, timeout=10) as rr: return json.loads(rr.read().decode())
+        en = relay("POST", "/device/enroll", {"code": r["code"], "pub": ppub, "name": "Dr. Example"})
+        assert en["status"] == "pending" and en["office_pub"]["x"] == st.read("road.json", {})["pub"]["x"]
+        code, r = _j(base, "GET", "/api/road/status")
+        assert r["pending"] == 1 and r["devices"][0]["name"] == "Dr. Example" and "pub" not in r["devices"][0], r
+        oid = st.read("road.json", {})["office_id"]; AAD = rc.aad_for(oid, en["device_id"])
+        code, r = _j(base, "POST", "/api/road/device", {"device_id": en["device_id"], "status": "allow", "fp": "zzzz"})
+        assert code == 400 and "does not match" in r["error"], r                          # Allow checks the phone's code
+        code, r = _j(base, "POST", "/api/road/device", {"device_id": en["device_id"], "status": "allow", "fp": rc.fingerprint(ppub)[:4]})
+        assert r["ok"] and r["device"]["status"] == "allowed", r
+        # phone photographs two pages and sends them to the office; the PC turns them into one PDF in the inbox
+        jpg = base64.b64decode("/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/yQALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==")
+        blob = rc.pack({"name": "Consent - J Doe", "from": "Dr. Example", "kind": "doc", "note": "signed in the car", "to": "Pat", "pages": [base64.urlsafe_b64encode(jpg).decode().rstrip("="), base64.b64encode(jpg).decode()]}, b"")
+        er = relay("POST", "/env", {"to": "office", "kind": "doc", "size": 2 * len(jpg), "body": rc.encrypt_to(en["office_pub"], blob, AAD)}, en["device_token"])
+        assert er["ok"], er
+        assert app.road.pull_once() == 1
+        code, ib = _j(base, "GET", "/api/inbox")
+        rd = [x for x in ib["rows"] if x.get("source") == "road"]
+        assert len(rd) == 1 and rd[0]["from_name"] == "Dr. Example (road)" and rd[0]["pages"] == 2 and rd[0]["assigned_to"] == "Pat" and rd[0]["note"] == "signed in the car", rd
+        pdfb = (st.root / "inbox" / (rd[0]["id"] + ".pdf")).read_bytes()
+        assert pdfb[:5] == b"%PDF-" and pdfb.count(b"/Type /Page ") == 2 and b"DCTDecode" in pdfb
+        assert relay("GET", "/env", None, "OT" + st.read("road.json", {})["office_id"])["rows"] == []        # acked
+        # office sends a document (a sent fax from the outbox) to the phone; the phone (roadcrypto) opens it
+        code, r = _j(base, "POST", "/api/road/send", {"id": fid3, "device_id": en["device_id"], "note": "please review"})
+        assert r["ok"] and r["device"] == "Dr. Example", r
+        mine = relay("GET", "/env", None, en["device_token"])["rows"]
+        assert len(mine) == 1 and mine[0]["kind"] == "doc" and mine[0]["from"] == "office"
+        full = relay("GET", "/env/" + mine[0]["id"], None, en["device_token"])
+        meta, data = rc.unpack(rc.decrypt(ppriv, full["body"], AAD))
+        try:
+            rc.decrypt(ppriv, full["body"], rc.aad_for(oid, "dev_other")); raise AssertionError("aad not bound")
+        except Exception as e:
+            assert not isinstance(e, AssertionError)
+        assert data[:5] == b"%PDF-" and meta["note"] == "please review" and meta["sent_by"] == "Pat" and meta["kind"] == "doc", meta
+        # a blocked phone cannot send; a tampered envelope is dropped, not landed
+        code, r = _j(base, "POST", "/api/road/device", {"device_id": en["device_id"], "status": "block"})
+        try:
+            relay("POST", "/env", {"to": "office", "kind": "doc", "size": 1, "body": rc.encrypt_to(en["office_pub"], blob, AAD)}, en["device_token"]); raise AssertionError("blocked phone sent")
+        except Exception as e:
+            assert not isinstance(e, AssertionError)
+        _j(base, "POST", "/api/road/device", {"device_id": en["device_id"], "status": "allow", "fp": rc.fingerprint(ppub)[:4]})
+        bad = rc.encrypt_to(en["office_pub"], blob, AAD); bad["ct"] = bad["ct"][:-6] + ("AAAAAA" if not bad["ct"].endswith("AAAAAA") else "BBBBBB")
+        relay("POST", "/env", {"to": "office", "kind": "doc", "size": 1, "body": bad}, en["device_token"])
+        assert app.road.pull_once() == 0 and len([x for x in _j(base, "GET", "/api/inbox")[1]["rows"] if x.get("source") == "road"]) == 1
+        assert not any("signed in the car" in l or "Consent" in l for l in (st.root / "audit.jsonl").read_text().splitlines())
+        ok.append("road: office key sealed; invite -> enrol -> Allow checks the phone's code; envelopes bound to office+device (AAD); phone pages land as one PDF, assigned; office -> phone sealed; blocked / tampered refused; relay and audit see no plaintext")
+
         n = app.worker.pull_once()
         assert n == 1 and app.worker.pull_once() == 0                                 # once
         code, ib = _j(base, "GET", "/api/inbox")
-        row = ib["rows"][0]
+        row = [x for x in ib["rows"] if x.get("source") != "road"][0]
         assert row["from"] == "+18185550123" and row["is_new"] and row["pages"] == 1 and (tmp / "inbox" / (row["id"] + ".pdf")).exists()
         code, r = _j(base, "POST", "/api/inbox/name", {"id": row["id"], "name": "Dr Test's office"})
         code, r = _j(base, "POST", "/api/inbox/assign", {"id": row["id"], "to": "Sam"})
@@ -154,7 +257,7 @@ def run():
         code, r = _j(base, "POST", "/api/inbox/handle", {"id": row["id"], "note": ""})          # one click: Done
         code, r = _j(base, "POST", "/api/inbox/handle", {"id": row["id"], "note": "Filed"}, name="Sam")   # second click: the why
         code, ib = _j(base, "GET", "/api/inbox", name="Sam")
-        row = ib["rows"][0]
+        row = [x for x in ib["rows"] if x.get("source") != "road"][0]
         assert row["from_name"] == "Dr Test's office" and row["assigned_to"] == "Sam" and row["rule_to"] == "Sam" and row["handled"] and not row["is_new"]
         assert row["handled_note"] == "Filed" and row["handled_by"] != "Sam"                    # the why does not change who did it
         code, r = _j(base, "POST", "/api/inbox/assign", {"id": row["id"], "to": "Nobody"})
@@ -162,6 +265,32 @@ def run():
         code, r = _j(base, "POST", "/api/inbox/spam", {"id": row["id"]}, name="")
         assert code == 400                                                             # no name, no action
         ok.append("inbox: pull once, name sender, assign, rule, Done then +why; names validated; no name = no action")
+        # search (OCR): a stand-in "tesseract" script says what is on each page; the real one is only on the user's PC
+        from . import ocr as _ocrmod
+        tess = tmp / ("tesseract.cmd" if os.name == "nt" else "tesseract")
+        if os.name == "nt":
+            tess.write_text("@echo RE: claim 26-902750892 Jacqueline Example records request\r\n", encoding="ascii")
+        else:
+            tess.write_text("#!/bin/sh\necho 'RE: claim 26-902750892 Jacqueline Example records request'\n", encoding="ascii"); os.chmod(str(tess), 0o755)
+        os.environ["FAXDESK_TESSERACT"] = str(tess)
+        try:
+            if _ocrmod.have_renderer():
+                n = app.ocr.once()
+                assert n >= 1, n
+                code, r = _j(base, "GET", "/api/inbox/search?q=902750892")
+                assert code == 200 and r["engine"] and row["id"] in r["hits"] and r["hits"][row["id"]]["page"] == 1 and "Jacqueline" in r["hits"][row["id"]]["line"], r
+                code, r = _j(base, "GET", "/api/inbox/search?q=claim%20records")
+                assert row["id"] in r["hits"], r
+                code, r = _j(base, "GET", "/api/inbox/search?q=nothing%20like%20this")
+                assert r["hits"] == {}, r
+                assert "902750892" not in (tmp / "audit.jsonl").read_text(encoding="ascii")
+                ok.append("search: OCR reads a new fax once, words found by page, all-words match, audit never records the search")
+            else:
+                code, r = _j(base, "GET", "/api/inbox/search?q=claim")
+                assert code == 200 and r["engine"] and not r["renderer"]
+                ok.append("search: renderer (PyMuPDF) not installed here - search answers 'off' plainly (OCR path untested)")
+        finally:
+            os.environ.pop("FAXDESK_TESSERACT", None)
         # settings re-save with blank account/extension keeps them; bulk actions; logo + disclaimer on the cover
         code, r = _j(base, "POST", "/api/setup", {"office": "Test Office", "voip_id": "", "extension": "", "office_line": "1 Main St", "disclaimer": "confidential"})
         assert r["setup_done"] and st.config()["voip_id"] == "999" and st.config()["disclaimer"] == "confidential"

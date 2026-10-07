@@ -11,13 +11,14 @@
 - Support: help@freefaxdesk.com
 
 ## Facts
-- Windows 10/11, single EXE, no install; Python standard library only.
+- Windows 10/11, single EXE, no install; Python standard library plus 'cryptography' for Road and 'pymupdf' + Tesseract for search (phone relay, end-to-end sealed).
 - v1.1 (2026-10-01): delivery watch - after a fax is accepted, FaxDesk checks with the fax service for 90 minutes; undelivered faxes turn failed with a plain-language reason and a Resend button, delivered ones are marked.
 - Works with a Phone.com account's fax number via the Phone.com API; other providers planned (SRFax next).
 - Nothing phones home: no analytics, no update checks, no cloud account.
 - Not affiliated with Phone.com.
 
 ## What's new - one page per feature
+- Search the words inside your faxes (OCR on your PC, v1.3): https://freefaxdesk.com/new/fax-search
 - Know when a fax actually arrived (delivery watch, v1.1): https://freefaxdesk.com/new/delivery-watch
 - Fax never went away. It went digital (launch story): https://freefaxdesk.com/new/fax-never-went-away
 - Done, with a reason (v1.0.2): https://freefaxdesk.com/new/done-with-a-reason
