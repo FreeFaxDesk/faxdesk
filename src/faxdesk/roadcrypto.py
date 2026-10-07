@@ -112,9 +112,12 @@ def pack(meta, data):
     return len(h).to_bytes(4, "big") + h + bytes(data)
 
 
+HEADER_MAX = 9 * 1024 * 1024       # the phone's camera pages travel INSIDE the header (base64 JPEGs, up to 6 MB raw)
+
+
 def unpack(blob):
     n = int.from_bytes(blob[:4], "big")
-    if n > 65536 or n > len(blob) - 4:
+    if n > HEADER_MAX or n > len(blob) - 4:
         raise ValueError("Bad Road payload.")
     return json.loads(blob[4:4 + n].decode("utf-8")), blob[4 + n:]
 
@@ -123,6 +126,8 @@ def _selftest():
     priv, pub = new_keypair()
     env = encrypt_to(pub, b"hello road", b"aad1")
     assert decrypt(priv, env, b"aad1") == b"hello road"
+    big = pack({"pages": ["A" * 400000, "B" * 400000]}, b"")               # two real phone photos: header far past 64 KB
+    assert len(unpack(big)[0]["pages"]) == 2
     try:
         decrypt(priv, env, b"aad2"); raise AssertionError("aad not checked")
     except Exception as e:

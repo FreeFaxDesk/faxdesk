@@ -12,6 +12,9 @@ Free for one PC. The "whole office" switch in Settings (other desks on your netw
 MIT licence. Provided as is, without warranty of any kind.
 Uninstall: uninstall.bat (stops it, removes the logon task, optionally wipes %LOCALAPPDATA%\FaxDesk), then delete the folder.
 
+1.3.1 - Road fix: documents photographed on a phone were dropped by the office PC (page bundle cap too low). Also
+        a fax sent to a phone now carries the sender name you gave the number, and Incoming shows the name/note on
+        documents that came in from a phone. What's new: freefaxdesk.com/new/road
 1.3.0 - Search the words inside your faxes. Install Tesseract OCR once (Settings > Search says how); FaxDesk reads each
         incoming fax on this PC and the search box on Incoming finds a name, claim or auth number - and opens the page it is on.
 1.2.0 - Road: your office fax desk on your phones. Settings > Road > Turn on, Invite a phone, Allow it. Faxes go to a phone with one

@@ -18,6 +18,7 @@
 - Not affiliated with Phone.com.
 
 ## What's new - one page per feature
+- Road: office faxes on the team's phones, signed forms back from the field, sealed end to end (v1.3.1): https://freefaxdesk.com/new/road
 - Search the words inside your faxes (OCR on your PC, v1.3): https://freefaxdesk.com/new/fax-search
 - Know when a fax actually arrived (delivery watch, v1.1): https://freefaxdesk.com/new/delivery-watch
 - Fax never went away. It went digital (launch story): https://freefaxdesk.com/new/fax-never-went-away

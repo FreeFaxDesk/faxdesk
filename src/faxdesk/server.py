@@ -17,7 +17,7 @@ from .worker import Worker
 from .road import Road
 from . import ocr as _ocr
 
-VERSION = "0.6.0"
+VERSION = "0.6.1"
 HERE = Path(getattr(sys, "_MEIPASS", "")) / "faxdesk" if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
 MAX_PDF = 20 * 1024 * 1024
 OUTCOMES = ["Printed", "Filed", "Given to someone", "Replied", "Junk"]
@@ -503,8 +503,9 @@ class Handler(BaseHTTPRequestHandler):
                 pdfp = app.store.root / box / (fid + ".pdf")
                 if not m or not pdfp.exists():
                     return self._send(404, {"ok": False, "error": "Not found."})
-                meta = {"name": (m.get("subject") or m.get("filename") or fid) + ".pdf" if not str(m.get("subject") or "").endswith(".pdf") else m.get("subject"),
-                        "from": (m.get("from_name") or app.pretty(m.get("from")) or m.get("to_name") or ""), "kind": "fax" if box == "inbox" and m.get("source") != "road" else "doc",
+                sender = (app.store.contacts().get(m.get("from") or "") or {}).get("name") or m.get("from_name") or ""     # the name the desk gave this fax number
+                meta = {"name": (m.get("subject") or (sender + " fax" if sender and box == "inbox" else "") or m.get("filename") or fid) + ".pdf" if not str(m.get("subject") or "").endswith(".pdf") else m.get("subject"),
+                        "from": (sender or app.pretty(m.get("from")) or m.get("to_name") or ""), "kind": "fax" if box == "inbox" and m.get("source") != "road" else "doc",
                         "pages": m.get("pages"), "note": body.get("note") or ""}
                 code, out = app.road.send(me, str(body.get("device_id") or ""), pdfp.read_bytes(), meta); return self._send(code, out)
             if path == "/api/resend":

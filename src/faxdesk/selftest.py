@@ -211,8 +211,9 @@ def run():
         assert r["ok"] and r["device"]["status"] == "allowed", r
         # phone photographs two pages and sends them to the office; the PC turns them into one PDF in the inbox
         jpg = base64.b64decode("/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/yQALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==")
-        blob = rc.pack({"name": "Consent - J Doe", "from": "Dr. Example", "kind": "doc", "note": "signed in the car", "to": "Pat", "pages": [base64.urlsafe_b64encode(jpg).decode().rstrip("="), base64.b64encode(jpg).decode()]}, b"")
-        er = relay("POST", "/env", {"to": "office", "kind": "doc", "size": 2 * len(jpg), "body": rc.encrypt_to(en["office_pub"], blob, AAD)}, en["device_token"])
+        jpg2 = jpg + b"\0" * 300000                      # a real phone photo is a few hundred KB: the header must take it (v1.3.1 fix)
+        blob = rc.pack({"name": "Consent - J Doe", "from": "Dr. Example", "kind": "doc", "note": "signed in the car", "to": "Pat", "pages": [base64.urlsafe_b64encode(jpg).decode().rstrip("="), base64.b64encode(jpg2).decode()]}, b"")
+        er = relay("POST", "/env", {"to": "office", "kind": "doc", "size": len(jpg) + len(jpg2), "body": rc.encrypt_to(en["office_pub"], blob, AAD)}, en["device_token"])
         assert er["ok"], er
         assert app.road.pull_once() == 1
         code, ib = _j(base, "GET", "/api/inbox")
