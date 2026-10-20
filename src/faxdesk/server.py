@@ -17,7 +17,7 @@ from .worker import Worker
 from .road import Road
 from . import ocr as _ocr
 
-VERSION = "0.6.1"
+VERSION = "0.7.0"
 HERE = Path(getattr(sys, "_MEIPASS", "")) / "faxdesk" if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
 MAX_PDF = 20 * 1024 * 1024
 OUTCOMES = ["Printed", "Filed", "Given to someone", "Replied", "Junk"]
@@ -227,6 +227,50 @@ class App:
                 st.save_book(book)
         self.worker.poke()
         return 200, {"ok": True, "id": fid, "pages": meta["pages"]}
+
+    def refax(self, fid, me):
+        """v1.4 'Refax with proof that you already got it' (2026-10-19): re-send a SENT fax with a proof page in
+        front - when it went, to whom, pages, the Phone.com id and the delivery result - then the original cover and
+        document exactly as sent. A new outbox entry, so the log shows both."""
+        st = self.store
+        m = st.read("outbox/%s.json" % fid, None)
+        if not m:
+            return 404, {"ok": False, "error": "Not found."}
+        if m.get("status") != "sent":
+            return 400, {"ok": False, "error": "Only a sent fax can be re-sent with proof. Use Resend for a failed one."}
+        src = st.root / "outbox" / (fid + ".pdf")
+        if not src.exists():
+            return 404, {"ok": False, "error": "The original document is gone (retention)."}
+        c = st.config()
+        stamp = lambda t: (str(t)[:16].replace("T", " ") if t else "-")
+        dv = m.get("delivery") or {}
+        dtxt = ("delivered" if dv.get("ok") else ("not confirmed" if dv.get("final") else "")) if dv else ""
+        proof = ["THIS IS A RE-SEND.", "Our records show this document was already", "transmitted to this fax number.", "",
+                 "Originally sent:  " + stamp(m.get("sent_at")), "To:               " + (m.get("to_name") or "") + "  " + self.pretty(m.get("to")),
+                 "Pages:            " + str(m.get("pages") or ""), "Our fax:          " + self.pretty(c.get("fax_number")),
+                 "Phone.com id:     " + str(m.get("fax_id") or "-")] + (["Delivery:         " + dtxt] if dtxt else []) + ["",
+                 "It is being sent again at your request.", "The original transmission (cover page", "included) follows this page.", "",
+                 "Our transmission report is on file."]
+        nid = "out-" + _dt.datetime.now().strftime("%Y%m%d-%H%M%S") + "-" + base64.b32encode(os.urandom(5)).decode("ascii").lower()[:10]
+        logo = None
+        try:
+            logo = (st.root / "logo.jpg").read_bytes() if (st.root / "logo.jpg").exists() else None
+        except OSError:
+            logo = None
+        subject = "RE-SENT with proof - " + (m.get("subject") or "")
+        cover = cover_pdf(c, m.get("to_name") or "", m.get("to"), me, subject[:80], "\n".join(proof), int(m.get("pages") or 0), logo=logo)
+        (st.root / "outbox" / (nid + ".cover.pdf")).write_bytes(cover)
+        oc = st.root / "outbox" / (fid + ".cover.pdf")
+        if m.get("cover") and oc.exists():
+            (st.root / "outbox" / (nid + ".orig_cover.pdf")).write_bytes(oc.read_bytes())
+        (st.root / "outbox" / (nid + ".pdf")).write_bytes(src.read_bytes())
+        meta = {"id": nid, "to": m.get("to"), "to_name": m.get("to_name") or "", "subject": subject[:80], "note": "", "by": me, "queued_at": now(),
+                "status": "queued", "tries": 0, "pages": int(m.get("pages") or 0) + 1, "filename": m.get("filename") or "document.pdf",
+                "cover": True, "error": "", "refax_of": fid, "proof_of_ts": m.get("sent_at") or ""}
+        st.write("outbox/" + nid + ".json", meta)
+        st.audit("fax_refax", me, "of_" + fid, nid)
+        self.worker.poke()
+        return 200, {"ok": True, "id": nid, "pages": meta["pages"]}
 
     def resend(self, fid, me):
         m = self.store.read("outbox/%s.json" % fid, None)
@@ -508,6 +552,11 @@ class Handler(BaseHTTPRequestHandler):
                         "from": (sender or app.pretty(m.get("from")) or m.get("to_name") or ""), "kind": "fax" if box == "inbox" and m.get("source") != "road" else "doc",
                         "pages": m.get("pages"), "note": body.get("note") or ""}
                 code, out = app.road.send(me, str(body.get("device_id") or ""), pdfp.read_bytes(), meta); return self._send(code, out)
+            if path == "/api/refax":
+                fid = str(body.get("id") or "")
+                if not _ID.match(fid):
+                    return self._send(400, {"ok": False, "error": "Bad id."})
+                code, out = app.refax(fid, me); return self._send(code, out)
             if path == "/api/resend":
                 fid = str(body.get("id") or "")
                 if not _ID.match(fid):

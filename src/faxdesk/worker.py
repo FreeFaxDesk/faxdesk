@@ -58,6 +58,9 @@ class Worker(threading.Thread):
                 try:
                     cov = meta_path.with_name(meta_path.stem + ".cover.pdf")
                     extra = [("cover.pdf", cov.read_bytes())] if m.get("cover") and cov.exists() else None
+                    oc = meta_path.with_name(meta_path.stem + ".orig_cover.pdf")        # v1.4 refax with proof: proof page, then the cover as originally sent
+                    if oc.exists():
+                        extra = (extra or []) + [("original-cover.pdf", oc.read_bytes())]
                     res = client.send(pdf.read_bytes(), m["to"], filename=m.get("filename") or "document.pdf", extra=extra)
                 except Exception as e:
                     res = {"ok": False, "error": "send failed (%s)" % type(e).__name__}

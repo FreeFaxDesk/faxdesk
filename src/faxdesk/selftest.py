@@ -152,6 +152,18 @@ def run():
             assert rr.headers.get("Content-Type") == "application/pdf" and rr.read()[:5] == b"%PDF-"
         ok.append("send: queue -> worker -> sent with cover; log; book; confirmation PDF")
 
+        # v1.4 refax with proof (2026-10-19): a SENT fax re-queues as a new entry with a proof cover + the original cover + the document
+        sent_id = o["rows"][0]["id"]
+        code, r = _j(base, "POST", "/api/refax", {"id": sent_id})
+        assert code == 200 and r["ok"] and r["id"] != sent_id, r
+        rm = st.read("outbox/%s.json" % r["id"], {})
+        assert rm["refax_of"] == sent_id and rm["status"] == "queued" and rm["subject"].startswith("RE-SENT with proof") and rm["cover"], rm
+        assert (st.root / "outbox" / (r["id"] + ".cover.pdf")).exists() and (st.root / "outbox" / (r["id"] + ".orig_cover.pdf")).exists()
+        app.worker.transmit_once()
+        rm = st.read("outbox/%s.json" % r["id"], {})
+        assert rm["status"] == "sent", rm
+        ok.append("refax with proof: new entry, proof cover + original cover + document, sends")
+
         calls["fail_next"] = 3
         code, r = _j(base, "POST", "/api/send", {"to": "8185550124", "pdf": base64.b64encode(doc).decode(), "cover": False})
         fid = r["id"]
